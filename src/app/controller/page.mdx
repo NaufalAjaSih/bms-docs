@@ -1,0 +1,497 @@
+# Controller Standards
+
+## Daftar Isi
+
+- [Struktur Dasar Controller](#struktur-dasar-controller)
+- [Method Index (DataTables)](#method-index-datatables)
+- [Method Show](#method-show)
+- [Method Store](#method-store)
+- [Method Update](#method-update)
+- [Method Destroy](#method-destroy)
+- [CRUD Modal vs CRUD Page](#crud-modal-vs-crud-page)
+- [Best Practices](#best-practices)
+
+## Struktur Dasar Controller
+
+### Template Dasar
+
+```php
+<?php
+
+namespace App\Http\Controllers;
+
+use Carbon\Carbon;
+use App\Models\{ModelName};
+use Illuminate\Support\Str;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Yajra\DataTables\Facades\DataTables;
+
+class {Entity}Controller extends Controller
+{
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(Request $request)
+    {
+        // Implementation
+    }
+
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
+        // Implementation
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(Request $request)
+    {
+        // Implementation
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show($id)
+    {
+        // Implementation
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, $id)
+    {
+        // Implementation
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy($id)
+    {
+        // Implementation
+    }
+}
+```
+
+### Required Imports
+
+```php
+use Carbon\Carbon;                    // Untuk format tanggal
+use App\Models\{ModelName};           // Model yang digunakan
+use Illuminate\Support\Str;           // Untuk generate random string
+use Illuminate\Http\Request;          // Request handling
+use Illuminate\Support\Facades\DB;    // Database transactions
+use Yajra\DataTables\Facades\DataTables; // DataTables integration
+```
+
+## Method Index (DataTables)
+
+### Template Method Index
+
+```php
+public function index(Request $request)
+{
+    Carbon::setLocale('id'); // Set locale untuk format Indonesia
+
+    if ($request->ajax()) {
+        $data = {ModelName}::orderBy('id', 'desc');
+
+        return DataTables::of($data)
+            ->addIndexColumn()
+            ->editColumn('field_name', function ($row) {
+                // Custom formatting logic
+                return $formattedValue;
+            })
+            ->addColumn('action', function ($row) {
+                $showUrl = route('route-name.show', $row->id);
+                $deleteUrl = route('route-name.destroy', $row->id);
+
+                $btn = '<div class="d-flex justify-content-center">';
+                $btn .= '<button class="btn btn-primary btn-sm edit-button" data-id="' . e($row->id) . '" data-url="' . e($showUrl) . '">Edit</button>';
+                $btn .= '<form action="' . e($deleteUrl) . '" method="POST" style="display:inline;">' . csrf_field() . method_field('DELETE') . '<button type="submit" class="delete-button btn btn-danger btn-sm ml-2">Hapus</button></form>';
+                $btn .= '</div>';
+                return $btn;
+            })
+            ->rawColumns(['action'])
+            ->make(true);
+    }
+
+    return view('admin.{view-folder}.index');
+}
+```
+
+### Contoh Implementasi Index
+
+```php
+public function index(Request $request)
+{
+    Carbon::setLocale('id');
+
+    if ($request->ajax()) {
+        $data = Biodata::orderBy('id', 'desc');
+
+        return DataTables::of($data)
+            ->addIndexColumn()
+            ->editColumn('jenis_kelamin', function ($row) {
+                return $row->jenis_kelamin == 1 ? 'Laki - laki' : 'Perempuan';
+            })
+            ->editColumn('tgl_lahir', function ($row) {
+                return Carbon::parse($row->tgl_lahir)->translatedFormat('d F Y');
+            })
+            ->addColumn('action', function ($row) {
+                $showUrl = route('crud-modal.show', $row->id);
+                $deleteUrl = route('crud-modal.destroy', $row->id);
+
+                $btn = '<div class="d-flex justify-content-center">';
+                $btn .= '<button class="btn btn-primary btn-sm edit-button" data-id="' . e($row->id) . '" data-url="' . e($showUrl) . '">Edit</button>';
+                $btn .= '<form action="' . e($deleteUrl) . '" method="POST" style="display:inline;">' . csrf_field() . method_field('DELETE') . '<button type="submit" class="delete-button btn btn-danger btn-sm ml-2">Hapus</button></form>';
+                $btn .= '</div>';
+                return $btn;
+            })
+            ->rawColumns(['action'])
+            ->make(true);
+    }
+
+    return view('admin.modal.index');
+}
+```
+
+## Method Show
+
+### CRUD Modal Controller
+
+```php
+public function show($id)
+{
+    $data = {ModelName}::findOrFail($id);
+
+    return response()->json([
+        'status' => 'success',
+        'data' => $data,
+    ]);
+}
+```
+
+### CRUD Page Controller
+
+```php
+public function show($id)
+{
+    $data = {ModelName}::findOrFail($id);
+
+    return view('admin.{view-folder}.show', compact('data'));
+}
+```
+
+### Method Create (CRUD Page)
+
+```php
+public function create()
+{
+    return view('admin.{view-folder}.create');
+}
+```
+
+## Method Store
+
+### Template Method Store
+
+```php
+public function store(Request $request)
+{
+    // Validation rules
+    $rules = [
+        'field_name' => 'required|unique:table_name,field_name',
+        'file_field' => 'nullable|file|mimes:jpeg,png,jpg|max:2048',
+    ];
+
+    // Custom messages
+    $messages = [
+        'field_name.required' => 'Field name wajib diisi.',
+        'field_name.unique' => 'Field name sudah digunakan.',
+        'file_field.file' => 'File harus berupa file.',
+        'file_field.mimes' => 'Format file harus jpeg, png, atau jpg.',
+        'file_field.max' => 'Ukuran file maksimal 2MB.',
+    ];
+
+    $request->validate($rules, $messages);
+
+    DB::beginTransaction();
+    try {
+        // File upload logic
+        if ($request->hasFile('file_field')) {
+            $file = $request->file('file_field');
+            $ext = $file->getClientOriginalExtension();
+            $filename = Str::random(25) . '.' . $ext;
+            $file->move(public_path('assets/folder/'), $filename);
+        }
+
+        // Data preparation
+        $db = [
+            'field_name' => $request->field_name,
+            'file_field' => $filename ?? ''
+        ];
+
+        {ModelName}::create($db);
+
+        DB::commit();
+
+        return response()->json(['status' => 'success']);
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'status' => 'error',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
+```
+
+### Contoh Implementasi Store
+
+```php
+public function store(Request $request)
+{
+    $rules = [
+        'nama' => 'required|unique:biodata,nama',
+        'jenis_kelamin' => 'required',
+        'tgl_lahir' => 'required|date',
+        'foto' => 'nullable|file|mimes:jpeg,png,jpg|max:2048',
+    ];
+
+    $messages = [
+        'nama.required' => 'Nama wajib diisi.',
+        'nama.unique' => 'Nama sudah digunakan.',
+        'jenis_kelamin.required' => 'Jenis kelamin wajib diisi.',
+        'tgl_lahir.required' => 'Tanggal lahir wajib diisi.',
+        'tgl_lahir.date' => 'Tanggal lahir harus berupa tanggal yang valid.',
+        'foto.file' => 'Foto harus berupa file.',
+        'foto.mimes' => 'Format foto harus jpeg, png, atau jpg.',
+        'foto.max' => 'Ukuran foto maksimal 2MB.',
+    ];
+
+    $request->validate($rules, $messages);
+
+    DB::beginTransaction();
+    try {
+        if ($request->hasFile('foto')) {
+            $foto = $request->file('foto');
+            $ext = $foto->getClientOriginalExtension();
+            $filename = Str::random(25) . '.' . $ext;
+            $foto->move(public_path('assets/foto/'), $filename);
+        }
+
+        $db = [
+            'nama' => $request->nama,
+            'jenis_kelamin' => $request->jenis_kelamin,
+            'tgl_lahir' => $request->tgl_lahir,
+            'foto' => $filename ?? ''
+        ];
+
+        Biodata::create($db);
+
+        DB::commit();
+
+        return response()->json(['status' => 'success']);
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'status' => 'error',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
+```
+
+## Method Update
+
+### Template Method Update
+
+```php
+public function update(Request $request, $id)
+{
+    $data = {ModelName}::findOrFail($id);
+
+    // Validation rules with unique exception
+    $rules = [
+        'field_name' => 'required|unique:table_name,field_name,' . $data->id . ',id',
+        'file_field' => 'nullable|file|mimes:jpeg,png,jpg|max:2048',
+    ];
+
+    // Custom messages
+    $messages = [
+        'field_name.required' => 'Field name wajib diisi.',
+        'field_name.unique' => 'Field name sudah digunakan.',
+        'file_field.file' => 'File harus berupa file.',
+        'file_field.mimes' => 'Format file harus jpeg, png, atau jpg.',
+        'file_field.max' => 'Ukuran file maksimal 2MB.',
+    ];
+
+    $request->validate($rules, $messages);
+
+    DB::beginTransaction();
+    try {
+        // File upload logic with old file deletion
+        if ($request->hasFile('file_field')) {
+            if (!empty($data->file_field) && file_exists(public_path('assets/folder/' . $data->file_field))) {
+                unlink(public_path('assets/folder/' . $data->file_field));
+            }
+
+            $file = $request->file('file_field');
+            $ext = $file->getClientOriginalExtension();
+            $filename = Str::random(25) . '.' . $ext;
+            $file->move(public_path('assets/folder/'), $filename);
+        }
+
+        // Data preparation
+        $db = [
+            'field_name' => $request->field_name,
+            'file_field' => $filename ?? $data->file_field
+        ];
+
+        $data->update($db);
+
+        DB::commit();
+
+        return response()->json(['status' => 'success']);
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'status' => 'error',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
+```
+
+## Method Destroy
+
+### Template Method Destroy
+
+```php
+public function destroy($id)
+{
+    DB::beginTransaction();
+    try {
+        $data = {ModelName}::findOrFail($id);
+
+        // Delete associated file
+        if (!empty($data->file_field) && file_exists(public_path('assets/folder/' . $data->file_field))) {
+            unlink(public_path('assets/folder/' . $data->file_field));
+        }
+
+        $data->delete();
+
+        DB::commit();
+
+        return response()->json(['status' => 'success']);
+    } catch (\Exception $e) {
+        DB::rollBack();
+
+        return response()->json([
+            'status' => 'error',
+            'error' => $e->getMessage()
+        ], 500);
+    }
+}
+```
+
+## CRUD Modal vs CRUD Page
+
+### CRUD Modal Controller
+
+| Method | Purpose | Response |
+|--------|---------|----------|
+| `index()` | Menampilkan list data dengan DataTables | View + AJAX DataTables |
+| `show($id)` | Mengambil data untuk edit modal | JSON response |
+| `store()` | Menyimpan data baru | JSON response |
+| `update()` | Update data existing | JSON response |
+| `destroy()` | Hapus data | JSON response |
+
+### CRUD Page Controller
+
+| Method | Purpose | Response |
+|--------|---------|----------|
+| `index()` | Menampilkan list data dengan DataTables | View + AJAX DataTables |
+| `create()` | Menampilkan form create | View |
+| `show($id)` | Menampilkan form edit | View |
+| `store()` | Menyimpan data baru | JSON response |
+| `update()` | Update data existing | JSON response |
+| `destroy()` | Hapus data | JSON response |
+
+## Best Practices
+
+### 1. **Error Handling**
+- Selalu gunakan try-catch untuk operasi database
+- Gunakan database transactions untuk operasi yang kompleks
+- Return meaningful error messages
+
+### 2. **Security**
+- Validasi semua input user
+- Gunakan `e()` helper untuk escape HTML output
+- Sanitasi file upload
+
+### 3. **Performance**
+- Gunakan eager loading untuk relationships
+- Optimasi query database
+- Implementasikan pagination untuk data besar
+
+### 4. **Code Organization**
+- Pisahkan logic bisnis ke service layer jika kompleks
+- Gunakan repository pattern untuk operasi database yang kompleks
+- Implementasikan form request untuk validasi yang kompleks
+
+### 5. **Response Format**
+```php
+// Success response
+return response()->json(['status' => 'success']);
+
+// Error response
+return response()->json([
+    'status' => 'error',
+    'error' => $e->getMessage()
+], 500);
+
+// Data response
+return response()->json([
+    'status' => 'success',
+    'data' => $data,
+]);
+```
+
+## Checklist Controller
+
+### Structure
+- [ ] Extends Controller class
+- [ ] Proper namespace
+- [ ] Required imports
+- [ ] Proper method signatures
+
+### Methods
+- [ ] Index method dengan DataTables
+- [ ] Show method sesuai tipe CRUD
+- [ ] Store method dengan validasi
+- [ ] Update method dengan validasi
+- [ ] Destroy method dengan file cleanup
+
+### Error Handling
+- [ ] Try-catch untuk database operations
+- [ ] Database transactions
+- [ ] Proper error responses
+- [ ] File cleanup on errors
+
+### Security
+- [ ] Input validation
+- [ ] File upload validation
+- [ ] HTML escaping
+- [ ] CSRF protection
+
+---
+
+**Selanjutnya**: [Model Standards](../model) 

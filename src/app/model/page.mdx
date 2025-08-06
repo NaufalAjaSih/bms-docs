@@ -1,0 +1,517 @@
+# Model Standards
+
+## Daftar Isi
+
+- [Struktur Dasar Model](#struktur-dasar-model)
+- [Fillable Fields](#fillable-fields)
+- [Casts](#casts)
+- [Accessors & Mutators](#accessors--mutators)
+- [Relationships](#relationships)
+- [Scopes](#scopes)
+- [Best Practices](#best-practices)
+
+## Struktur Dasar Model
+
+### Template Dasar
+
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
+class {ModelName} extends Model
+{
+    use HasFactory;
+
+    protected $table = 'table_name';
+    public $timestamps = false; // Set false jika tidak menggunakan timestamps
+
+    protected $fillable = [
+        'field_name',
+        'file_field',
+        // Add other fillable fields
+    ];
+
+    protected $casts = [
+        'date_field' => 'date',
+        'boolean_field' => 'boolean',
+        'numeric_field' => 'decimal:2',
+    ];
+
+    // Accessors & Mutators
+    public function getFormattedFieldAttribute()
+    {
+        // Custom formatting logic
+        return $this->field_name;
+    }
+
+    // Relationships (if any)
+    // public function relatedModel()
+    // {
+    //     return $this->belongsTo(RelatedModel::class);
+    // }
+
+    // Scopes
+    // public function scopeActive($query)
+    // {
+    //     return $query->where('is_active', true);
+    // }
+}
+```
+
+### Contoh Implementasi
+
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
+class Biodata extends Model
+{
+    use HasFactory;
+
+    protected $table = 'biodata';
+    public $timestamps = false;
+
+    protected $fillable = [
+        'nama',
+        'jenis_kelamin',
+        'tgl_lahir',
+        'foto',
+    ];
+
+    protected $casts = [
+        'tgl_lahir' => 'date',
+        'jenis_kelamin' => 'integer',
+    ];
+}
+```
+
+## Fillable Fields
+
+### Definisi Fillable
+
+`$fillable` adalah array yang berisi nama-nama kolom yang dapat diisi secara massal (mass assignment) menggunakan method `create()` atau `fill()`.
+
+### Template Fillable
+
+```php
+protected $fillable = [
+    'nama',
+    'email',
+    'jenis_kelamin',
+    'tgl_lahir',
+    'foto',
+    'alamat',
+    'telepon',
+    'is_active',
+    // Add other fillable fields
+];
+```
+
+### Contoh Implementasi
+
+```php
+protected $fillable = [
+    'nama',
+    'jenis_kelamin',
+    'tgl_lahir',
+    'foto',
+];
+```
+
+### Keamanan
+
+- **Jangan** memasukkan kolom yang sensitif seperti `id`, `created_at`, `updated_at`
+- **Selalu** validasi data sebelum mass assignment
+- **Gunakan** `$guarded` sebagai alternatif jika ingin melindungi semua kolom kecuali yang disebutkan
+
+```php
+// Alternatif menggunakan $guarded
+protected $guarded = ['id', 'created_at', 'updated_at'];
+```
+
+## Casts
+
+### Definisi Casts
+
+`$casts` adalah array yang mendefinisikan bagaimana kolom database harus dikonversi ke tipe data PHP yang sesuai.
+
+### Tipe Cast yang Umum
+
+| Tipe Cast | Deskripsi | Contoh |
+|-----------|-----------|--------|
+| `'string'` | Cast ke string | `'nama' => 'string'` |
+| `'integer'` | Cast ke integer | `'jenis_kelamin' => 'integer'` |
+| `'boolean'` | Cast ke boolean | `'is_active' => 'boolean'` |
+| `'date'` | Cast ke Carbon date | `'tgl_lahir' => 'date'` |
+| `'datetime'` | Cast ke Carbon datetime | `'created_at' => 'datetime'` |
+| `'decimal:n'` | Cast ke decimal dengan n digit | `'harga' => 'decimal:2'` |
+| `'array'` | Cast ke array (JSON) | `'metadata' => 'array'` |
+| `'object'` | Cast ke object (JSON) | `'settings' => 'object'` |
+
+### Template Casts
+
+```php
+protected $casts = [
+    'nama' => 'string',
+    'jenis_kelamin' => 'integer',
+    'tgl_lahir' => 'date',
+    'harga' => 'decimal:2',
+    'is_active' => 'boolean',
+    'metadata' => 'array',
+    'created_at' => 'datetime',
+    'updated_at' => 'datetime',
+];
+```
+
+### Contoh Implementasi
+
+```php
+protected $casts = [
+    'tgl_lahir' => 'date',
+    'jenis_kelamin' => 'integer',
+];
+```
+
+## Accessors & Mutators
+
+### Accessors
+
+Accessors memungkinkan Anda untuk memformat data saat mengambil dari database.
+
+### Template Accessor
+
+```php
+// Format: get{AttributeName}Attribute
+public function getFormattedFieldAttribute()
+{
+    // Custom formatting logic
+    return $this->field_name;
+}
+
+// Usage: $model->formatted_field
+```
+
+### Contoh Accessor
+
+```php
+// Format nama dengan title case
+public function getNamaFormattedAttribute()
+{
+    return ucwords(strtolower($this->nama));
+}
+
+// Format jenis kelamin
+public function getJenisKelaminTextAttribute()
+{
+    return $this->jenis_kelamin == 1 ? 'Laki-laki' : 'Perempuan';
+}
+
+// Format tanggal lahir
+public function getTglLahirFormattedAttribute()
+{
+    return $this->tgl_lahir ? $this->tgl_lahir->format('d F Y') : '-';
+}
+
+// URL foto
+public function getFotoUrlAttribute()
+{
+    return $this->foto ? asset('assets/foto/' . $this->foto) : asset('assets/img/default.jpg');
+}
+```
+
+### Mutators
+
+Mutators memungkinkan Anda untuk memformat data sebelum menyimpan ke database.
+
+### Template Mutator
+
+```php
+// Format: set{AttributeName}Attribute
+public function setFieldNameAttribute($value)
+{
+    // Custom formatting logic
+    $this->attributes['field_name'] = $formattedValue;
+}
+```
+
+### Contoh Mutator
+
+```php
+// Format nama sebelum simpan
+public function setNamaAttribute($value)
+{
+    $this->attributes['nama'] = ucwords(strtolower($value));
+}
+
+// Hash password sebelum simpan
+public function setPasswordAttribute($value)
+{
+    $this->attributes['password'] = bcrypt($value);
+}
+```
+
+## Relationships
+
+### Definisi Relationships
+
+Relationships mendefinisikan hubungan antar model dalam database.
+
+### Tipe Relationships
+
+| Tipe | Method | Deskripsi |
+|------|--------|-----------|
+| **One to One** | `hasOne()` | Satu model memiliki satu model lain |
+| **One to Many** | `hasMany()` | Satu model memiliki banyak model lain |
+| **Many to One** | `belongsTo()` | Banyak model milik satu model lain |
+| **Many to Many** | `belongsToMany()` | Banyak model memiliki banyak model lain |
+
+### Template Relationships
+
+```php
+// One to Many
+public function posts()
+{
+    return $this->hasMany(Post::class);
+}
+
+// Many to One
+public function user()
+{
+    return $this->belongsTo(User::class);
+}
+
+// One to One
+public function profile()
+{
+    return $this->hasOne(Profile::class);
+}
+
+// Many to Many
+public function roles()
+{
+    return $this->belongsToMany(Role::class);
+}
+```
+
+### Contoh Implementasi
+
+```php
+// Jika Biodata memiliki User
+public function user()
+{
+    return $this->belongsTo(User::class);
+}
+
+// Jika User memiliki banyak Biodata
+public function biodata()
+{
+    return $this->hasMany(Biodata::class);
+}
+```
+
+## Scopes
+
+### Definisi Scopes
+
+Scopes memungkinkan Anda untuk menambahkan query constraints yang dapat digunakan kembali.
+
+### Local Scopes
+
+```php
+// Format: scope{ScopeName}
+public function scopeActive($query)
+{
+    return $query->where('is_active', true);
+}
+
+public function scopeByJenisKelamin($query, $jenisKelamin)
+{
+    return $query->where('jenis_kelamin', $jenisKelamin);
+}
+
+public function scopeSearch($query, $search)
+{
+    return $query->where('nama', 'like', '%' . $search . '%');
+}
+```
+
+### Global Scopes
+
+```php
+protected static function booted()
+{
+    static::addGlobalScope('active', function ($query) {
+        $query->where('is_active', true);
+    });
+}
+```
+
+### Penggunaan Scopes
+
+```php
+// Local scope
+$activeUsers = Biodata::active()->get();
+$maleUsers = Biodata::byJenisKelamin(1)->get();
+$searchResults = Biodata::search('john')->get();
+
+// Chaining scopes
+$results = Biodata::active()->byJenisKelamin(1)->search('john')->get();
+```
+
+## Best Practices
+
+### 1. **Naming Conventions**
+- Gunakan PascalCase untuk nama model
+- Gunakan snake_case untuk nama kolom
+- Gunakan camelCase untuk nama method
+
+### 2. **Fillable vs Guarded**
+- Gunakan `$fillable` untuk keamanan yang lebih baik
+- Hindari `$guarded = []` (membuka semua kolom)
+
+### 3. **Casts**
+- Selalu definisikan casts untuk tipe data yang spesifik
+- Gunakan casts untuk format tanggal dan waktu
+- Gunakan casts untuk boolean dan numeric
+
+### 4. **Accessors & Mutators**
+- Gunakan accessors untuk formatting data
+- Gunakan mutators untuk preprocessing data
+- Nama accessor/mutator harus deskriptif
+
+### 5. **Relationships**
+- Definisikan relationships yang jelas
+- Gunakan eager loading untuk menghindari N+1 problem
+- Berikan nama relationship yang deskriptif
+
+### 6. **Scopes**
+- Gunakan scopes untuk query yang sering digunakan
+- Berikan nama scope yang jelas
+- Dokumentasikan parameter scope
+
+### 7. **Performance**
+- Gunakan `select()` untuk kolom yang diperlukan saja
+- Gunakan `with()` untuk eager loading relationships
+- Hindari query dalam loop
+
+## Checklist Model
+
+### Structure
+- [ ] Extends Model class
+- [ ] Proper namespace
+- [ ] Use HasFactory trait
+- [ ] Proper table name
+
+### Properties
+- [ ] Fillable fields defined
+- [ ] Casts defined
+- [ ] Timestamps configuration
+- [ ] Primary key configuration (if custom)
+
+### Methods
+- [ ] Accessors for formatting
+- [ ] Mutators for preprocessing
+- [ ] Relationships defined
+- [ ] Scopes for common queries
+
+### Best Practices
+- [ ] Proper naming conventions
+- [ ] Security considerations
+- [ ] Performance optimization
+- [ ] Code documentation
+
+## Contoh Model Lengkap
+
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
+class Biodata extends Model
+{
+    use HasFactory;
+
+    protected $table = 'biodata';
+    public $timestamps = false;
+
+    protected $fillable = [
+        'nama',
+        'jenis_kelamin',
+        'tgl_lahir',
+        'foto',
+        'alamat',
+        'telepon',
+        'is_active',
+    ];
+
+    protected $casts = [
+        'tgl_lahir' => 'date',
+        'jenis_kelamin' => 'integer',
+        'is_active' => 'boolean',
+    ];
+
+    // Accessors
+    public function getNamaFormattedAttribute()
+    {
+        return ucwords(strtolower($this->nama));
+    }
+
+    public function getJenisKelaminTextAttribute()
+    {
+        return $this->jenis_kelamin == 1 ? 'Laki-laki' : 'Perempuan';
+    }
+
+    public function getTglLahirFormattedAttribute()
+    {
+        return $this->tgl_lahir ? $this->tgl_lahir->format('d F Y') : '-';
+    }
+
+    public function getFotoUrlAttribute()
+    {
+        return $this->foto ? asset('assets/foto/' . $this->foto) : asset('assets/img/default.jpg');
+    }
+
+    // Mutators
+    public function setNamaAttribute($value)
+    {
+        $this->attributes['nama'] = ucwords(strtolower($value));
+    }
+
+    // Relationships
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    // Scopes
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    public function scopeByJenisKelamin($query, $jenisKelamin)
+    {
+        return $query->where('jenis_kelamin', $jenisKelamin);
+    }
+
+    public function scopeSearch($query, $search)
+    {
+        return $query->where('nama', 'like', '%' . $search . '%');
+    }
+}
+```
+
+---
+
+**Selanjutnya**: [Migration Standards](../migration) 

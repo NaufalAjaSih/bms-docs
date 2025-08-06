@@ -1,0 +1,197 @@
+# Struktur Project & Standar Penamaan
+
+## Struktur Project
+
+```
+Laravel-CRUDTemplate/
+├── app/
+│   ├── Http/Controllers/
+│   │   ├── CRUDModalController.php      # Controller untuk CRUD Modal
+│   │   └── CRUDPageController.php       # Controller untuk CRUD Page
+│   └── Models/
+│       └── Biodata.php                  # Model untuk entity
+├── database/
+│   ├── migrations/
+│   │   └── 0001_01_01_000000_create_users_table.php
+│   └── factories/
+│       └── BiodataFactory.php
+├── resources/
+│   └── views/
+│       └── admin/
+│           ├── layout.blade.php         # Layout utama admin
+│           ├── modal/
+│           │   └── index.blade.php      # View untuk CRUD Modal
+│           └── page/
+│               ├── index.blade.php      # List view untuk CRUD Page
+│               ├── create.blade.php     # Create view untuk CRUD Page
+│               └── show.blade.php       # Edit view untuk CRUD Page
+├── public/
+│   └── assets/
+│       └── foto/                        # Folder untuk file upload
+└── routes/
+    └── web.php                          # Route definitions
+```
+
+## Standar Penamaan
+
+### Controller
+
+| Jenis | Format | Contoh |
+|-------|--------|--------|
+| **CRUD Modal** | `CRUD{Entity}ModalController` | `CRUDBiodataModalController` |
+| **CRUD Page** | `CRUD{Entity}PageController` | `CRUDBiodataPageController` |
+| **Entity Controller** | `{Entity}Controller` | `BiodataController` |
+
+**Contoh Implementasi:**
+```php
+// CRUD Modal Controller
+class CRUDBiodataModalController extends Controller
+{
+    // Methods untuk CRUD dengan modal
+}
+
+// CRUD Page Controller  
+class CRUDBiodataPageController extends Controller
+{
+    // Methods untuk CRUD dengan halaman terpisah
+}
+
+// Entity Controller
+class BiodataController extends Controller
+{
+    // Methods untuk entity Biodata
+}
+```
+
+### Model
+
+| Aturan | Format | Contoh |
+|--------|--------|--------|
+| **Nama Model** | PascalCase, Singular | `Biodata`, `User`, `Product` |
+| **Table Name** | snake_case, plural | `biodata`, `users`, `products` |
+| **File Name** | PascalCase | `Biodata.php`, `User.php` |
+
+**Contoh Implementasi:**
+```php
+class Biodata extends Model
+{
+    protected $table = 'biodata';  // snake_case, plural
+    protected $fillable = [
+        'nama',
+        'jenis_kelamin',
+        'tgl_lahir',
+        'foto',
+    ];
+}
+```
+
+### Migration
+
+| Aturan | Format | Contoh |
+|--------|--------|--------|
+| **File Name** | `{timestamp}_create_{table_name}_table.php` | `2024_01_01_000000_create_biodata_table.php` |
+| **Table Name** | snake_case, plural | `biodata`, `users`, `products` |
+| **Column Names** | snake_case | `nama`, `jenis_kelamin`, `tgl_lahir` |
+
+**Contoh Implementasi:**
+```php
+Schema::create('biodata', function (Blueprint $table) {
+    $table->id();
+    $table->string('nama');
+    $table->integer('jenis_kelamin');
+    $table->date('tgl_lahir');
+    $table->string('foto')->nullable();
+});
+```
+
+### Route
+
+| Jenis | Format | Contoh |
+|-------|--------|--------|
+| **Resource Route** | `{prefix}/{entity}` (kebab-case) | `admin/crud-modal`, `admin/biodata` |
+| **Custom Route** | `{prefix}/{entity}/{action}` | `admin/biodata/export` |
+| **Route Name** | `{entity}.{action}` | `biodata.index`, `biodata.store` |
+
+**Contoh Implementasi:**
+```php
+// Resource routes
+Route::resource('admin/crud-modal', CRUDModalController::class);
+Route::resource('admin/crud-page', CRUDPageController::class);
+
+// Custom routes
+Route::get('admin/biodata/export', [BiodataController::class, 'export'])
+    ->name('biodata.export');
+```
+
+### View
+
+| Jenis | Format | Contoh |
+|-------|--------|--------|
+| **Layout** | `layout.blade.php` | `admin/layout.blade.php` |
+| **Index View** | `index.blade.php` | `admin/modal/index.blade.php` |
+| **Form View** | `{action}.blade.php` | `admin/page/create.blade.php` |
+| **Folder Structure** | `admin/{type}/` | `admin/modal/`, `admin/page/` |
+
+**Contoh Struktur View:**
+```
+resources/views/admin/
+├── layout.blade.php              # Layout utama
+├── modal/
+│   └── index.blade.php           # CRUD Modal view
+└── page/
+    ├── index.blade.php           # List view
+    ├── create.blade.php          # Create form
+    └── show.blade.php            # Edit form
+```
+
+### File Upload
+
+| Jenis | Format | Contoh |
+|-------|--------|--------|
+| **Upload Folder** | `public/assets/{entity}/` | `public/assets/foto/` |
+| **File Name** | Random string + extension | `4CHVHT7iGLLsMSgURlV0yQQWX.jpeg` |
+| **File Path** | `assets/{entity}/{filename}` | `assets/foto/4CHVHT7iGLLsMSgURlV0yQQWX.jpeg` |
+
+**Contoh Implementasi:**
+```php
+// File upload
+$filename = Str::random(25) . '.' . $ext;
+$file->move(public_path('assets/foto/'), $filename);
+
+// File path
+$filePath = 'assets/foto/' . $filename;
+```
+
+## Checklist Struktur
+
+### Folder Structure
+- [ ] Controller di `app/Http/Controllers/`
+- [ ] Model di `app/Models/`
+- [ ] Migration di `database/migrations/`
+- [ ] View di `resources/views/admin/`
+- [ ] Upload folder di `public/assets/`
+
+### Naming Convention
+- [ ] Controller menggunakan PascalCase
+- [ ] Model menggunakan PascalCase
+- [ ] Migration menggunakan snake_case
+- [ ] Route menggunakan kebab-case
+- [ ] View menggunakan snake_case
+
+### File Organization
+- [ ] CRUD Modal dan Page terpisah
+- [ ] Layout konsisten
+- [ ] Asset folder terorganisir
+- [ ] Route terstruktur
+
+## Best Practices
+
+1. **Konsistensi** - Selalu ikuti standar penamaan yang telah ditetapkan
+2. **Deskriptif** - Gunakan nama yang jelas dan mudah dipahami
+3. **Singular/Plural** - Model singular, table plural
+4. **Hierarchy** - Organisir file berdasarkan fungsi dan tipe
+5. **Scalability** - Struktur yang dapat dikembangkan dengan mudah
+
+---
+
+**Selanjutnya**: [Controller Standards](../controller) 
