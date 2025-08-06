@@ -6,10 +6,10 @@
 Laravel-CRUDTemplate/
 ├── app/
 │   ├── Http/Controllers/
-│   │   ├── CRUDModalController.php      # Controller untuk CRUD Modal
-│   │   └── CRUDPageController.php       # Controller untuk CRUD Page
+│   │   ├── BiodataModalController.php    # Controller untuk CRUD Modal
+│   │   └── BiodataPageController.php     # Controller untuk CRUD Page
 │   └── Models/
-│       └── Biodata.php                  # Model untuk entity
+│       └── Biodata.php                   # Model untuk entity
 ├── database/
 │   ├── migrations/
 │   │   └── 0001_01_01_000000_create_users_table.php
@@ -18,45 +18,47 @@ Laravel-CRUDTemplate/
 ├── resources/
 │   └── views/
 │       └── admin/
-│           ├── layout.blade.php         # Layout utama admin
-│           ├── modal/
-│           │   └── index.blade.php      # View untuk CRUD Modal
-│           └── page/
-│               ├── index.blade.php      # List view untuk CRUD Page
-│               ├── create.blade.php     # Create view untuk CRUD Page
-│               └── show.blade.php       # Edit view untuk CRUD Page
+│           ├── layout.blade.php          # Layout utama admin
+│           ├── biodata/
+│           │   ├── modal/
+│           │   │   └── index.blade.php   # View untuk CRUD Modal
+│           │   └── page/
+│           │       ├── index.blade.php   # List view untuk CRUD Page
+│           │       ├── create.blade.php  # Create view untuk CRUD Page
+│           │       └── show.blade.php    # Edit view untuk CRUD Page
 ├── public/
 │   └── assets/
-│       └── foto/                        # Folder untuk file upload
+│       └── biodata/                      # Folder untuk file upload
 └── routes/
-    └── web.php                          # Route definitions
+    └── web.php                           # Route definitions
 ```
 
 ## Standar Penamaan
 
 ### Controller
 
-| Jenis | Format | Contoh |
-|-------|--------|--------|
-| **CRUD Modal** | `CRUD{Entity}ModalController` | `CRUDBiodataModalController` |
-| **CRUD Page** | `CRUD{Entity}PageController` | `CRUDBiodataPageController` |
-| **Entity Controller** | `{Entity}Controller` | `BiodataController` |
+| Jenis                 | Format                    | Contoh                                          |
+| --------------------- | ------------------------- | ----------------------------------------------- |
+| **CRUD Modal**        | `{Entity}ModalController` | `BiodataModalController`, `UserModalController` |
+| **CRUD Page**         | `{Entity}PageController`  | `BiodataPageController`, `UserPageController`   |
+| **Entity Controller** | `{Entity}Controller`      | `BiodataController`, `UserController`           |
 
 **Contoh Implementasi:**
+
 ```php
 // CRUD Modal Controller
-class CRUDBiodataModalController extends Controller
+class BiodataModalController extends Controller
 {
     // Methods untuk CRUD dengan modal
 }
 
-// CRUD Page Controller  
-class CRUDBiodataPageController extends Controller
+// CRUD Page Controller
+class BiodataPageController extends Controller
 {
     // Methods untuk CRUD dengan halaman terpisah
 }
 
-// Entity Controller
+// Entity Controller (untuk API atau custom logic)
 class BiodataController extends Controller
 {
     // Methods untuk entity Biodata
@@ -65,13 +67,14 @@ class BiodataController extends Controller
 
 ### Model
 
-| Aturan | Format | Contoh |
-|--------|--------|--------|
-| **Nama Model** | PascalCase, Singular | `Biodata`, `User`, `Product` |
-| **Table Name** | snake_case, plural | `biodata`, `users`, `products` |
-| **File Name** | PascalCase | `Biodata.php`, `User.php` |
+| Aturan         | Format               | Contoh                         |
+| -------------- | -------------------- | ------------------------------ |
+| **Nama Model** | PascalCase, Singular | `Biodata`, `User`, `Product`   |
+| **Table Name** | snake_case, plural   | `biodata`, `users`, `products` |
+| **File Name**  | PascalCase           | `Biodata.php`, `User.php`      |
 
 **Contoh Implementasi:**
+
 ```php
 class Biodata extends Model
 {
@@ -87,13 +90,14 @@ class Biodata extends Model
 
 ### Migration
 
-| Aturan | Format | Contoh |
-|--------|--------|--------|
-| **File Name** | `{timestamp}_create_{table_name}_table.php` | `2024_01_01_000000_create_biodata_table.php` |
-| **Table Name** | snake_case, plural | `biodata`, `users`, `products` |
-| **Column Names** | snake_case | `nama`, `jenis_kelamin`, `tgl_lahir` |
+| Aturan           | Format                                      | Contoh                                       |
+| ---------------- | ------------------------------------------- | -------------------------------------------- |
+| **File Name**    | `{timestamp}_create_{table_name}_table.php` | `2024_01_01_000000_create_biodata_table.php` |
+| **Table Name**   | snake_case, plural                          | `biodata`, `users`, `products`               |
+| **Column Names** | snake_case                                  | `nama`, `jenis_kelamin`, `tgl_lahir`         |
 
 **Contoh Implementasi:**
+
 ```php
 Schema::create('biodata', function (Blueprint $table) {
     $table->id();
@@ -106,17 +110,18 @@ Schema::create('biodata', function (Blueprint $table) {
 
 ### Route
 
-| Jenis | Format | Contoh |
-|-------|--------|--------|
-| **Resource Route** | `{prefix}/{entity}` (kebab-case) | `admin/crud-modal`, `admin/biodata` |
-| **Custom Route** | `{prefix}/{entity}/{action}` | `admin/biodata/export` |
-| **Route Name** | `{entity}.{action}` | `biodata.index`, `biodata.store` |
+| Jenis              | Format                           | Contoh                                      |
+| ------------------ | -------------------------------- | ------------------------------------------- |
+| **Resource Route** | `{prefix}/{entity}` (kebab-case) | `admin/biodata-modal`, `admin/biodata-page` |
+| **Custom Route**   | `{prefix}/{entity}/{action}`     | `admin/biodata/export`                      |
+| **Route Name**     | `{entity}.{action}`              | `biodata-modal.index`, `biodata-page.store` |
 
 **Contoh Implementasi:**
+
 ```php
-// Resource routes
-Route::resource('admin/crud-modal', CRUDModalController::class);
-Route::resource('admin/crud-page', CRUDPageController::class);
+// Resource routes untuk Modal dan Page
+Route::resource('admin/biodata-modal', BiodataModalController::class);
+Route::resource('admin/biodata-page', BiodataPageController::class);
 
 // Custom routes
 Route::get('admin/biodata/export', [BiodataController::class, 'export'])
@@ -125,64 +130,103 @@ Route::get('admin/biodata/export', [BiodataController::class, 'export'])
 
 ### View
 
-| Jenis | Format | Contoh |
-|-------|--------|--------|
-| **Layout** | `layout.blade.php` | `admin/layout.blade.php` |
-| **Index View** | `index.blade.php` | `admin/modal/index.blade.php` |
-| **Form View** | `{action}.blade.php` | `admin/page/create.blade.php` |
-| **Folder Structure** | `admin/{type}/` | `admin/modal/`, `admin/page/` |
+| Jenis              | Format                           | Contoh                                |
+| ------------------ | -------------------------------- | ------------------------------------- |
+| **Layout**         | `layout.blade.php`               | `admin/layout.blade.php`              |
+| **Modal Index**    | `{entity}/modal/index.blade.php` | `admin/biodata/modal/index.blade.php` |
+| **Page Index**     | `{entity}/page/index.blade.php`  | `admin/biodata/page/index.blade.php`  |
+| **Page Create**    | `{entity}/page/create.blade.php` | `admin/biodata/page/create.blade.php` |
+| **Page Show/Edit** | `{entity}/page/show.blade.php`   | `admin/biodata/page/show.blade.php`   |
 
 **Contoh Struktur View:**
+
 ```
 resources/views/admin/
-├── layout.blade.php              # Layout utama
-├── modal/
-│   └── index.blade.php           # CRUD Modal view
-└── page/
-    ├── index.blade.php           # List view
-    ├── create.blade.php          # Create form
-    └── show.blade.php            # Edit form
+├── layout.blade.php                    # Layout utama
+├── biodata/
+│   ├── modal/
+│   │   └── index.blade.php             # CRUD Modal view
+│   └── page/
+│       ├── index.blade.php             # List view
+│       ├── create.blade.php            # Create form
+│       └── show.blade.php              # Edit form
+├── user/
+│   ├── modal/
+│   │   └── index.blade.php             # User CRUD Modal
+│   └── page/
+│       ├── index.blade.php             # User List view
+│       ├── create.blade.php            # User Create form
+│       └── show.blade.php              # User Edit form
+└── product/
+    ├── modal/
+    │   └── index.blade.php             # Product CRUD Modal
+    └── page/
+        ├── index.blade.php             # Product List view
+        ├── create.blade.php            # Product Create form
+        └── show.blade.php              # Product Edit form
 ```
 
 ### File Upload
 
-| Jenis | Format | Contoh |
-|-------|--------|--------|
-| **Upload Folder** | `public/assets/{entity}/` | `public/assets/foto/` |
-| **File Name** | Random string + extension | `4CHVHT7iGLLsMSgURlV0yQQWX.jpeg` |
-| **File Path** | `assets/{entity}/{filename}` | `assets/foto/4CHVHT7iGLLsMSgURlV0yQQWX.jpeg` |
+| Jenis             | Format                       | Contoh                                          |
+| ----------------- | ---------------------------- | ----------------------------------------------- |
+| **Upload Folder** | `public/assets/{entity}/`    | `public/assets/biodata/`                        |
+| **File Name**     | Random string + extension    | `4CHVHT7iGLLsMSgURlV0yQQWX.jpeg`                |
+| **File Path**     | `assets/{entity}/{filename}` | `assets/biodata/4CHVHT7iGLLsMSgURlV0yQQWX.jpeg` |
 
 **Contoh Implementasi:**
+
 ```php
 // File upload
 $filename = Str::random(25) . '.' . $ext;
-$file->move(public_path('assets/foto/'), $filename);
+$file->move(public_path('assets/biodata/'), $filename);
 
 // File path
-$filePath = 'assets/foto/' . $filename;
+$filePath = 'assets/biodata/' . $filename;
 ```
+
+## Perbedaan CRUD Modal vs CRUD Page
+
+### CRUD Modal
+
+-   **Controller**: `{Entity}ModalController`
+-   **View**: `admin/{entity}/modal/index.blade.php`
+-   **Route**: `admin/{entity}-modal`
+-   **Fitur**: Semua operasi CRUD dalam modal
+-   **UX**: Single page application feel
+
+### CRUD Page
+
+-   **Controller**: `{Entity}PageController`
+-   **View**: `admin/{entity}/page/` (index, create, show)
+-   **Route**: `admin/{entity}-page`
+-   **Fitur**: Halaman terpisah untuk setiap operasi
+-   **UX**: Traditional multi-page application
 
 ## Checklist Struktur
 
 ### Folder Structure
-- [ ] Controller di `app/Http/Controllers/`
-- [ ] Model di `app/Models/`
-- [ ] Migration di `database/migrations/`
-- [ ] View di `resources/views/admin/`
-- [ ] Upload folder di `public/assets/`
+
+-   [ ] Controller di `app/Http/Controllers/`
+-   [ ] Model di `app/Models/`
+-   [ ] Migration di `database/migrations/`
+-   [ ] View di `resources/views/admin/{entity}/`
+-   [ ] Upload folder di `public/assets/{entity}/`
 
 ### Naming Convention
-- [ ] Controller menggunakan PascalCase
-- [ ] Model menggunakan PascalCase
-- [ ] Migration menggunakan snake_case
-- [ ] Route menggunakan kebab-case
-- [ ] View menggunakan snake_case
+
+-   [ ] Controller menggunakan PascalCase tanpa prefix CRUD
+-   [ ] Model menggunakan PascalCase
+-   [ ] Migration menggunakan snake_case
+-   [ ] Route menggunakan kebab-case dengan suffix modal/page
+-   [ ] View menggunakan snake_case dengan struktur modal/page
 
 ### File Organization
-- [ ] CRUD Modal dan Page terpisah
-- [ ] Layout konsisten
-- [ ] Asset folder terorganisir
-- [ ] Route terstruktur
+
+-   [ ] CRUD Modal dan Page terpisah dengan jelas
+-   [ ] Layout konsisten
+-   [ ] Asset folder terorganisir per entity
+-   [ ] Route terstruktur dengan suffix yang jelas
 
 ## Best Practices
 
@@ -191,7 +235,53 @@ $filePath = 'assets/foto/' . $filename;
 3. **Singular/Plural** - Model singular, table plural
 4. **Hierarchy** - Organisir file berdasarkan fungsi dan tipe
 5. **Scalability** - Struktur yang dapat dikembangkan dengan mudah
+6. **Separation** - Pisahkan dengan jelas antara Modal dan Page CRUD
+
+## Contoh Implementasi Lengkap
+
+### Untuk Entity "Biodata"
+
+#### Controller
+
+```php
+// BiodataModalController.php
+class BiodataModalController extends Controller
+{
+    // Modal CRUD methods
+}
+
+// BiodataPageController.php
+class BiodataPageController extends Controller
+{
+    // Page CRUD methods
+}
+```
+
+#### Routes
+
+```php
+Route::resource('admin/biodata-modal', BiodataModalController::class);
+Route::resource('admin/biodata-page', BiodataPageController::class);
+```
+
+#### Views
+
+```
+admin/biodata/
+├── modal/
+│   └── index.blade.php
+└── page/
+    ├── index.blade.php
+    ├── create.blade.php
+    └── show.blade.php
+```
+
+#### Upload Folder
+
+```
+public/assets/biodata/
+```
 
 ---
 
-**Selanjutnya**: [Controller Standards](../controller) 
+**Selanjutnya**: [Controller Standards](02-controller-standards.md)

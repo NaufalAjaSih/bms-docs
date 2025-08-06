@@ -1,0 +1,532 @@
+# Migration Standards
+
+## Daftar Isi
+
+-   [Struktur Dasar Migration](#struktur-dasar-migration)
+-   [Tipe Data Kolom](#tipe-data-kolom)
+-   [Constraint dan Index](#constraint-dan-index)
+-   [Foreign Key](#foreign-key)
+-   [Soft Delete](#soft-delete)
+-   [Timestamps](#timestamps)
+-   [Best Practices](#best-practices)
+
+## Struktur Dasar Migration
+
+### Template Dasar
+
+```php
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('table_name', function (Blueprint $table) {
+            $table->id();
+            $table->string('field_name');
+            $table->integer('status_field')->default(1);
+            $table->date('date_field');
+            $table->string('file_field')->nullable();
+            $table->timestamps(); // Remove if not needed
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('table_name');
+    }
+};
+```
+
+### Contoh Implementasi
+
+```php
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('biodata', function (Blueprint $table) {
+            $table->id();
+            $table->string('nama');
+            $table->integer('jenis_kelamin');
+            $table->date('tgl_lahir');
+            $table->string('foto')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('biodata');
+    }
+};
+```
+
+## Tipe Data Kolom
+
+### String dan Text
+
+```php
+// String dengan panjang tertentu
+$table->string('nama', 100);
+
+// String dengan panjang default (255)
+$table->string('nama');
+
+// Text untuk konten panjang
+$table->text('deskripsi');
+
+// Long text untuk konten sangat panjang
+$table->longText('konten');
+```
+
+### Numeric
+
+```php
+// Integer
+$table->integer('jenis_kelamin');
+
+// Big integer
+$table->bigInteger('user_id');
+
+// Decimal dengan presisi
+$table->decimal('harga', 10, 2);
+
+// Float
+$table->float('rating', 2, 1);
+
+// Boolean
+$table->boolean('is_active');
+```
+
+### Date dan Time
+
+```php
+// Date only
+$table->date('tgl_lahir');
+
+// Date and time
+$table->datetime('created_at');
+
+// Timestamp
+$table->timestamp('email_verified_at')->nullable();
+
+// Time only
+$table->time('jam_mulai');
+```
+
+### JSON dan Array
+
+```php
+// JSON column
+$table->json('metadata');
+
+// Array column (Laravel 8+)
+$table->json('tags');
+```
+
+### File dan Binary
+
+```php
+// File path
+$table->string('foto')->nullable();
+
+// Binary data
+$table->binary('file_content');
+```
+
+## Constraint dan Index
+
+### Primary Key
+
+```php
+// Auto increment primary key
+$table->id();
+
+// Custom primary key
+$table->string('kode')->primary();
+
+// Composite primary key
+$table->primary(['user_id', 'role_id']);
+```
+
+### Unique Constraint
+
+```php
+// Single column unique
+$table->string('email')->unique();
+
+// Multiple columns unique
+$table->unique(['user_id', 'email']);
+
+// Unique dengan nama custom
+$table->unique(['user_id', 'email'], 'user_email_unique');
+```
+
+### Index
+
+```php
+// Single column index
+$table->string('nama')->index();
+
+// Multiple columns index
+$table->index(['nama', 'jenis_kelamin']);
+
+// Custom index name
+$table->index(['nama', 'jenis_kelamin'], 'nama_jenis_index');
+```
+
+### Nullable dan Default
+
+```php
+// Nullable column
+$table->string('foto')->nullable();
+
+// Default value
+$table->boolean('is_active')->default(true);
+
+// Nullable dengan default
+$table->string('status')->nullable()->default('pending');
+```
+
+## Foreign Key
+
+### Basic Foreign Key
+
+```php
+// Foreign key dengan auto naming
+$table->foreignId('user_id')->constrained();
+
+// Foreign key dengan custom table
+$table->foreignId('category_id')->constrained('categories');
+
+// Foreign key dengan custom column
+$table->foreignId('user_id')->constrained('users', 'id');
+```
+
+### Foreign Key dengan Options
+
+```php
+// Foreign key dengan cascade delete
+$table->foreignId('user_id')->constrained()->onDelete('cascade');
+
+// Foreign key dengan cascade update
+$table->foreignId('user_id')->constrained()->onUpdate('cascade');
+
+// Foreign key dengan restrict
+$table->foreignId('user_id')->constrained()->onDelete('restrict');
+```
+
+### Contoh Implementasi Foreign Key
+
+```php
+Schema::create('posts', function (Blueprint $table) {
+    $table->id();
+    $table->string('title');
+    $table->text('content');
+    $table->foreignId('user_id')->constrained()->onDelete('cascade');
+    $table->foreignId('category_id')->constrained()->onDelete('restrict');
+    $table->timestamps();
+});
+```
+
+## Soft Delete
+
+### Soft Delete Implementation
+
+```php
+Schema::create('users', function (Blueprint $table) {
+    $table->id();
+    $table->string('name');
+    $table->string('email')->unique();
+    $table->timestamp('email_verified_at')->nullable();
+    $table->string('password');
+    $table->rememberToken();
+    $table->timestamps();
+    $table->softDeletes(); // Menambahkan deleted_at column
+});
+```
+
+### Soft Delete dengan Custom Column
+
+```php
+// Custom soft delete column
+$table->softDeletes('deleted_at');
+
+// Custom soft delete column name
+$table->softDeletes('trashed_at');
+```
+
+## Timestamps
+
+### Default Timestamps
+
+```php
+// Menambahkan created_at dan updated_at
+$table->timestamps();
+
+// Menambahkan created_at dan updated_at dengan nullable
+$table->timestamps()->nullable();
+```
+
+### Custom Timestamps
+
+```php
+// Custom timestamp columns
+$table->timestamp('created_at')->useCurrent();
+$table->timestamp('updated_at')->useCurrentOnUpdate();
+
+// Timestamp dengan default value
+$table->timestamp('published_at')->nullable();
+```
+
+### Tanpa Timestamps
+
+```php
+// Jika tidak menggunakan timestamps
+// Tidak perlu menambahkan $table->timestamps();
+```
+
+## Contoh Migration Lengkap
+
+### Migration untuk Entity Biodata
+
+```php
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('biodata', function (Blueprint $table) {
+            $table->id();
+            $table->string('nama', 100);
+            $table->integer('jenis_kelamin')->comment('1: Laki-laki, 2: Perempuan');
+            $table->date('tgl_lahir');
+            $table->string('tempat_lahir', 100)->nullable();
+            $table->text('alamat')->nullable();
+            $table->string('telepon', 20)->nullable();
+            $table->string('email')->unique()->nullable();
+            $table->string('foto')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->foreignId('user_id')->nullable()->constrained()->onDelete('set null');
+            $table->timestamps();
+            $table->softDeletes();
+
+            // Indexes
+            $table->index(['nama', 'jenis_kelamin']);
+            $table->index('is_active');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('biodata');
+    }
+};
+```
+
+### Migration untuk Entity Product
+
+```php
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('products', function (Blueprint $table) {
+            $table->id();
+            $table->string('name', 200);
+            $table->string('sku')->unique();
+            $table->text('description')->nullable();
+            $table->decimal('price', 10, 2);
+            $table->decimal('cost_price', 10, 2)->nullable();
+            $table->integer('stock')->default(0);
+            $table->integer('min_stock')->default(0);
+            $table->string('image')->nullable();
+            $table->json('images')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->boolean('is_featured')->default(false);
+            $table->foreignId('category_id')->constrained()->onDelete('restrict');
+            $table->foreignId('brand_id')->nullable()->constrained()->onDelete('set null');
+            $table->foreignId('created_by')->constrained('users')->onDelete('restrict');
+            $table->foreignId('updated_by')->nullable()->constrained('users')->onDelete('set null');
+            $table->timestamps();
+            $table->softDeletes();
+
+            // Indexes
+            $table->index(['name', 'sku']);
+            $table->index(['category_id', 'is_active']);
+            $table->index('is_featured');
+            $table->index('price');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('products');
+    }
+};
+```
+
+## Best Practices
+
+### 1. **Naming Convention**
+
+-   Gunakan snake_case untuk nama tabel dan kolom
+-   Gunakan nama yang deskriptif dan jelas
+-   Hindari nama yang terlalu panjang
+
+### 2. **Data Types**
+
+-   Pilih tipe data yang tepat untuk setiap kolom
+-   Gunakan `decimal` untuk uang, bukan `float`
+-   Gunakan `text` untuk konten panjang
+-   Gunakan `json` untuk data terstruktur
+
+### 3. **Constraints**
+
+-   Selalu definisikan foreign key constraints
+-   Gunakan `unique` constraint untuk data yang harus unik
+-   Gunakan `nullable()` untuk kolom opsional
+-   Berikan `default` value yang masuk akal
+
+### 4. **Indexes**
+
+-   Buat index untuk kolom yang sering dicari
+-   Buat composite index untuk query yang kompleks
+-   Hindari terlalu banyak index (mempengaruhi performa write)
+
+### 5. **Soft Delete**
+
+-   Gunakan soft delete untuk data yang mungkin perlu dipulihkan
+-   Implementasikan soft delete di semua tabel yang relevan
+-   Pertimbangkan cleanup strategy untuk data yang sudah lama
+
+### 6. **Timestamps**
+
+-   Gunakan timestamps untuk tracking waktu
+-   Gunakan custom timestamp untuk event tertentu
+-   Pertimbangkan timezone untuk aplikasi global
+
+### 7. **Comments**
+
+-   Tambahkan comment untuk kolom yang kompleks
+-   Dokumentasikan constraint dan business rules
+-   Jelaskan maksud dari setiap kolom
+
+## Checklist Migration
+
+### Structure
+
+-   [ ] Proper class structure
+-   [ ] Correct namespace
+-   [ ] Proper imports
+-   [ ] up() dan down() methods
+
+### Table Definition
+
+-   [ ] Primary key defined
+-   [ ] Proper column types
+-   [ ] Appropriate constraints
+-   [ ] Indexes for performance
+
+### Relationships
+
+-   [ ] Foreign key constraints
+-   [ ] Proper cascade options
+-   [ ] Indexes on foreign keys
+-   [ ] Relationship integrity
+
+### Data Integrity
+
+-   [ ] Unique constraints
+-   [ ] Not null constraints
+-   [ ] Default values
+-   [ ] Check constraints (if needed)
+
+### Performance
+
+-   [ ] Appropriate indexes
+-   [ ] Efficient column types
+-   [ ] Optimized constraints
+-   [ ] Minimal overhead
+
+### Maintenance
+
+-   [ ] Soft delete (if needed)
+-   [ ] Timestamps
+-   [ ] Audit columns
+-   [ ] Proper rollback
+
+## Template Migration Generator
+
+### Command untuk Generate Migration
+
+```bash
+# Generate migration untuk create table
+php artisan make:migration create_biodata_table
+
+# Generate migration untuk modify table
+php artisan make:migration add_columns_to_biodata_table
+
+# Generate migration untuk drop table
+php artisan make:migration drop_biodata_table
+```
+
+### Naming Convention Migration
+
+| Jenis              | Format                                   | Contoh                         |
+| ------------------ | ---------------------------------------- | ------------------------------ |
+| **Create Table**   | `create_{table_name}_table`              | `create_biodata_table`         |
+| **Add Columns**    | `add_{columns}_to_{table_name}_table`    | `add_phone_to_biodata_table`   |
+| **Modify Columns** | `modify_{columns}_in_{table_name}_table` | `modify_name_in_biodata_table` |
+| **Drop Table**     | `drop_{table_name}_table`                | `drop_biodata_table`           |
+
+---
+
+**Selanjutnya**: [Route Standards](05-route-standards.md)

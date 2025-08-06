@@ -1,0 +1,691 @@
+# Error Handling Standards
+
+## Daftar Isi
+
+-   [Struktur Dasar Error Handling](#struktur-dasar-error-handling)
+-   [Try-Catch Blocks](#try-catch-blocks)
+-   [Database Transactions](#database-transactions)
+-   [Custom Exceptions](#custom-exceptions)
+-   [Error Responses](#error-responses)
+-   [Logging](#logging)
+-   [Best Practices](#best-practices)
+
+## Struktur Dasar Error Handling
+
+### Template Dasar
+
+```php
+try {
+    // Database operations atau logic yang berpotensi error
+    DB::beginTransaction();
+
+    // Your logic here
+
+    DB::commit();
+
+    return response()->json(['status' => 'success']);
+} catch (\Exception $e) {
+    DB::rollBack();
+
+    // Log error
+    Log::error('Error message: ' . $e->getMessage(), [
+        'file' => $e->getFile(),
+        'line' => $e->getLine(),
+        'trace' => $e->getTraceAsString()
+    ]);
+
+    return response()->json([
+        'status' => 'error',
+        'message' => 'Terjadi kesalahan sistem. Silakan coba lagi.',
+        'error' => config('app.debug') ? $e->getMessage() : null
+    ], 500);
+}
+```
+
+### Contoh Implementasi
+
+```php
+public function store(Request $request)
+{
+    try {
+        DB::beginTransaction();
+
+        // Validation
+        $request->validate([
+            'nama' => 'required|unique:biodata,nama',
+            'jenis_kelamin' => 'required|in:1,2',
+            'tgl_lahir' => 'required|date',
+            'foto' => 'nullable|file|mimes:jpeg,png,jpg|max:2048',
+        ]);
+
+        // File upload
+        if ($request->hasFile('foto')) {
+            $foto = $request->file('foto');
+            $ext = $foto->getClientOriginalExtension();
+            $filename = Str::random(25) . '.' . $ext;
+            $foto->move(public_path('assets/biodata/'), $filename);
+        }
+
+        // Create record
+        Biodata::create([
+            'nama' => $request->nama,
+            'jenis_kelamin' => $request->jenis_kelamin,
+            'tgl_lahir' => $request->tgl_lahir,
+            'foto' => $filename ?? ''
+        ]);
+
+        DB::commit();
+
+        return response()->json(['status' => 'success']);
+    } catch (ValidationException $e) {
+        DB::rollBack();
+
+        return response()->json([
+            'status' => 'error',
+            'errors' => $e->errors()
+        ], 422);
+    } catch (\Exception $e) {
+        DB::rollBack();
+
+        Log::error('Error creating biodata: ' . $e->getMessage(), [
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'data' => $request->all()
+        ]);
+
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Terjadi kesalahan sistem. Silakan coba lagi.',
+            'error' => config('app.debug') ? $e->getMessage() : null
+        ], 500);
+    }
+}
+```
+
+## Try-Catch Blocks
+
+### Basic Try-Catch
+
+```php
+try {
+    // Potentially error-prone code
+    $result = someFunction();
+
+    return response()->json(['status' => 'success', 'data' => $result]);
+} catch (\Exception $e) {
+    // Handle the error
+    Log::error('Error occurred: ' . $e->getMessage());
+
+    return response()->json([
+        'status' => 'error',
+        'message' => 'Terjadi kesalahan sistem.'
+    ], 500);
+}
+```
+
+### Multiple Exception Types
+
+```php
+try {
+    // Database operations
+    $data = Model::findOrFail($id);
+    $data->update($request->all());
+
+    return response()->json(['status' => 'success']);
+} catch (ModelNotFoundException $e) {
+    // Handle not found
+    return response()->json([
+        'status' => 'error',
+        'message' => 'Data tidak ditemukan.'
+    ], 404);
+} catch (QueryException $e) {
+    // Handle database errors
+    Log::error('Database error: ' . $e->getMessage());
+
+    return response()->json([
+        'status' => 'error',
+        'message' => 'Terjadi kesalahan database.'
+    ], 500);
+} catch (ValidationException $e) {
+    // Handle validation errors
+    return response()->json([
+        'status' => 'error',
+        'errors' => $e->errors()
+    ], 422);
+} catch (\Exception $e) {
+    // Handle other errors
+    Log::error('Unexpected error: ' . $e->getMessage());
+
+    return response()->json([
+        'status' => 'error',
+        'message' => 'Terjadi kesalahan sistem.'
+    ], 500);
+}
+```
+
+### Specific Exception Handling
+
+```php
+try {
+    // File operations
+    if ($request->hasFile('foto')) {
+        $foto = $request->file('foto');
+        $ext = $foto->getClientOriginalExtension();
+        $filename = Str::random(25) . '.' . $ext;
+        $foto->move(public_path('assets/biodata/'), $filename);
+    }
+} catch (FileException $e) {
+    // Handle file upload errors
+    Log::error('File upload error: ' . $e->getMessage());
+
+    return response()->json([
+        'status' => 'error',
+        'message' => 'Gagal mengupload file.'
+    ], 500);
+} catch (Exception $e) {
+    // Handle other errors
+    Log::error('File operation error: ' . $e->getMessage());
+
+    return response()->json([
+        'status' => 'error',
+        'message' => 'Terjadi kesalahan pada operasi file.'
+    ], 500);
+}
+```
+
+## Database Transactions
+
+### Basic Transaction
+
+```php
+DB::beginTransaction();
+try {
+    // Multiple database operations
+    $user = User::create($userData);
+    $profile = Profile::create([
+        'user_id' => $user->id,
+        'data' => $profileData
+    ]);
+
+    DB::commit();
+
+    return response()->json(['status' => 'success']);
+} catch (\Exception $e) {
+    DB::rollBack();
+
+    Log::error('Transaction failed: ' . $e->getMessage());
+
+    return response()->json([
+        'status' => 'error',
+        'message' => 'Gagal menyimpan data.'
+    ], 500);
+}
+```
+
+### Complex Transaction
+
+```php
+DB::beginTransaction();
+try {
+    // Create main record
+    $biodata = Biodata::create([
+        'nama' => $request->nama,
+        'jenis_kelamin' => $request->jenis_kelamin,
+        'tgl_lahir' => $request->tgl_lahir,
+    ]);
+
+    // Create related records
+    if ($request->has('alamat')) {
+        $biodata->alamat()->create([
+            'alamat' => $request->alamat,
+            'kota' => $request->kota,
+            'kode_pos' => $request->kode_pos,
+        ]);
+    }
+
+    // File upload
+    if ($request->hasFile('foto')) {
+        $foto = $request->file('foto');
+        $ext = $foto->getClientOriginalExtension();
+        $filename = Str::random(25) . '.' . $ext;
+        $foto->move(public_path('assets/biodata/'), $filename);
+
+        $biodata->update(['foto' => $filename]);
+    }
+
+    // Update statistics
+    Statistics::increment('total_biodata');
+
+    DB::commit();
+
+    return response()->json(['status' => 'success']);
+} catch (ValidationException $e) {
+    DB::rollBack();
+
+    return response()->json([
+        'status' => 'error',
+        'errors' => $e->errors()
+    ], 422);
+} catch (QueryException $e) {
+    DB::rollBack();
+
+    Log::error('Database transaction failed: ' . $e->getMessage());
+
+    return response()->json([
+        'status' => 'error',
+        'message' => 'Gagal menyimpan data ke database.'
+    ], 500);
+} catch (\Exception $e) {
+    DB::rollBack();
+
+    // Clean up uploaded file if exists
+    if (isset($filename) && file_exists(public_path('assets/biodata/' . $filename))) {
+        unlink(public_path('assets/biodata/' . $filename));
+    }
+
+    Log::error('Unexpected error in transaction: ' . $e->getMessage());
+
+    return response()->json([
+        'status' => 'error',
+        'message' => 'Terjadi kesalahan sistem.'
+    ], 500);
+}
+```
+
+## Custom Exceptions
+
+### Template Custom Exception
+
+```php
+<?php
+
+namespace App\Exceptions;
+
+use Exception;
+
+class CustomException extends Exception
+{
+    protected $code = 500;
+    protected $message = 'Terjadi kesalahan sistem.';
+
+    public function __construct($message = null, $code = null)
+    {
+        if ($message) {
+            $this->message = $message;
+        }
+
+        if ($code) {
+            $this->code = $code;
+        }
+
+        parent::__construct($this->message, $this->code);
+    }
+
+    public function render($request)
+    {
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $this->message,
+                'error' => config('app.debug') ? $this->getMessage() : null
+            ], $this->code);
+        }
+
+        return back()->with('error', $this->message);
+    }
+}
+```
+
+### Contoh Custom Exception
+
+```php
+<?php
+
+namespace App\Exceptions;
+
+use Exception;
+
+class BiodataException extends Exception
+{
+    protected $code = 500;
+    protected $message = 'Terjadi kesalahan pada data biodata.';
+
+    public function __construct($message = null, $code = null)
+    {
+        if ($message) {
+            $this->message = $message;
+        }
+
+        if ($code) {
+            $this->code = $code;
+        }
+
+        parent::__construct($this->message, $this->code);
+    }
+
+    public function render($request)
+    {
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $this->message,
+                'error' => config('app.debug') ? $this->getMessage() : null
+            ], $this->code);
+        }
+
+        return back()->with('error', $this->message);
+    }
+}
+
+// Usage
+throw new BiodataException('Nama biodata sudah digunakan.', 422);
+```
+
+### Business Logic Exception
+
+```php
+<?php
+
+namespace App\Exceptions;
+
+use Exception;
+
+class BusinessLogicException extends Exception
+{
+    protected $code = 400;
+    protected $message = 'Operasi tidak dapat dilakukan.';
+
+    public function __construct($message = null, $code = null)
+    {
+        if ($message) {
+            $this->message = $message;
+        }
+
+        if ($code) {
+            $this->code = $code;
+        }
+
+        parent::__construct($this->message, $this->code);
+    }
+
+    public function render($request)
+    {
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $this->message,
+                'type' => 'business_logic'
+            ], $this->code);
+        }
+
+        return back()->with('error', $this->message);
+    }
+}
+
+// Usage
+if ($biodata->is_locked) {
+    throw new BusinessLogicException('Data biodata sedang dikunci dan tidak dapat diubah.', 423);
+}
+```
+
+## Error Responses
+
+### JSON Error Response
+
+```php
+// Success response
+return response()->json([
+    'status' => 'success',
+    'message' => 'Data berhasil disimpan.',
+    'data' => $data
+]);
+
+// Error response
+return response()->json([
+    'status' => 'error',
+    'message' => 'Terjadi kesalahan sistem.',
+    'error' => config('app.debug') ? $e->getMessage() : null
+], 500);
+
+// Validation error response
+return response()->json([
+    'status' => 'error',
+    'message' => 'Data tidak valid.',
+    'errors' => $validator->errors()
+], 422);
+
+// Not found response
+return response()->json([
+    'status' => 'error',
+    'message' => 'Data tidak ditemukan.'
+], 404);
+
+// Unauthorized response
+return response()->json([
+    'status' => 'error',
+    'message' => 'Anda tidak memiliki akses.'
+], 403);
+```
+
+### Standardized Error Response
+
+```php
+class ErrorResponse
+{
+    public static function success($data = null, $message = 'Success')
+    {
+        return response()->json([
+            'status' => 'success',
+            'message' => $message,
+            'data' => $data
+        ]);
+    }
+
+    public static function error($message = 'Terjadi kesalahan sistem.', $code = 500, $error = null)
+    {
+        $response = [
+            'status' => 'error',
+            'message' => $message
+        ];
+
+        if (config('app.debug') && $error) {
+            $response['error'] = $error;
+        }
+
+        return response()->json($response, $code);
+    }
+
+    public static function validation($errors, $message = 'Data tidak valid.')
+    {
+        return response()->json([
+            'status' => 'error',
+            'message' => $message,
+            'errors' => $errors
+        ], 422);
+    }
+
+    public static function notFound($message = 'Data tidak ditemukan.')
+    {
+        return response()->json([
+            'status' => 'error',
+            'message' => $message
+        ], 404);
+    }
+
+    public static function unauthorized($message = 'Anda tidak memiliki akses.')
+    {
+        return response()->json([
+            'status' => 'error',
+            'message' => $message
+        ], 403);
+    }
+}
+
+// Usage
+return ErrorResponse::success($data, 'Data berhasil disimpan.');
+return ErrorResponse::error('Gagal menyimpan data.', 500, $e->getMessage());
+return ErrorResponse::validation($validator->errors());
+return ErrorResponse::notFound('Biodata tidak ditemukan.');
+return ErrorResponse::unauthorized('Anda tidak dapat mengakses data ini.');
+```
+
+## Logging
+
+### Basic Logging
+
+```php
+// Info logging
+Log::info('User created successfully', ['user_id' => $user->id]);
+
+// Error logging
+Log::error('Failed to create user', [
+    'error' => $e->getMessage(),
+    'user_data' => $request->all()
+]);
+
+// Warning logging
+Log::warning('User attempted to access restricted area', [
+    'user_id' => auth()->id(),
+    'ip' => $request->ip()
+]);
+
+// Debug logging
+Log::debug('Processing user request', [
+    'request_data' => $request->all(),
+    'user_agent' => $request->userAgent()
+]);
+```
+
+### Structured Logging
+
+```php
+// Log with context
+Log::channel('biodata')->info('Biodata created', [
+    'biodata_id' => $biodata->id,
+    'user_id' => auth()->id(),
+    'action' => 'create',
+    'ip_address' => $request->ip(),
+    'user_agent' => $request->userAgent(),
+    'timestamp' => now()->toISOString()
+]);
+
+// Log errors with stack trace
+Log::error('Database transaction failed', [
+    'error' => $e->getMessage(),
+    'file' => $e->getFile(),
+    'line' => $e->getLine(),
+    'trace' => $e->getTraceAsString(),
+    'request_data' => $request->all(),
+    'user_id' => auth()->id()
+]);
+```
+
+### Custom Log Channels
+
+```php
+// config/logging.php
+'channels' => [
+    'biodata' => [
+        'driver' => 'daily',
+        'path' => storage_path('logs/biodata.log'),
+        'level' => env('LOG_LEVEL', 'debug'),
+        'days' => 14,
+    ],
+    'errors' => [
+        'driver' => 'daily',
+        'path' => storage_path('logs/errors.log'),
+        'level' => 'error',
+        'days' => 30,
+    ],
+],
+
+// Usage
+Log::channel('biodata')->info('Biodata operation', $context);
+Log::channel('errors')->error('System error', $errorContext);
+```
+
+## Best Practices
+
+### 1. **Exception Handling**
+
+-   Selalu gunakan try-catch untuk operasi yang berpotensi error
+-   Tangani exception spesifik sebelum general exception
+-   Rollback database transaction jika terjadi error
+
+### 2. **Database Transactions**
+
+-   Gunakan transaction untuk operasi yang melibatkan multiple queries
+-   Selalu rollback jika terjadi error
+-   Clean up resources (files, etc.) jika terjadi error
+
+### 3. **Error Messages**
+
+-   Berikan pesan error yang user-friendly
+-   Jangan expose sensitive information di production
+-   Gunakan logging untuk debug information
+
+### 4. **Logging**
+
+-   Log semua error dengan context yang cukup
+-   Gunakan structured logging untuk kemudahan analisis
+-   Implementasikan log rotation untuk performance
+
+### 5. **Custom Exceptions**
+
+-   Buat custom exception untuk business logic errors
+-   Implementasikan proper error codes
+-   Handle custom exceptions di global exception handler
+
+### 6. **Response Format**
+
+-   Konsisten dalam format response
+-   Gunakan standardized error response
+-   Include proper HTTP status codes
+
+## Checklist Error Handling
+
+### Structure
+
+-   [ ] Try-catch blocks implemented
+-   [ ] Database transactions used
+-   [ ] Custom exceptions defined
+-   [ ] Error responses standardized
+
+### Exception Types
+
+-   [ ] ValidationException handled
+-   [ ] ModelNotFoundException handled
+-   [ ] QueryException handled
+-   [ ] Custom exceptions handled
+
+### Database Operations
+
+-   [ ] Transactions used for complex operations
+-   [ ] Proper rollback on errors
+-   [ ] Resource cleanup on errors
+-   [ ] Connection error handling
+
+### Logging
+
+-   [ ] Error logging implemented
+-   [ ] Context information included
+-   [ ] Log channels configured
+-   [ ] Log rotation enabled
+
+### Security
+
+-   [ ] Sensitive data not exposed
+-   [ ] Debug information controlled
+-   [ ] Error messages sanitized
+-   [ ] Access control implemented
+
+### User Experience
+
+-   [ ] User-friendly error messages
+-   [ ] Proper HTTP status codes
+-   [ ] Consistent response format
+-   [ ] Helpful error guidance
+
+---
+
+**Selanjutnya**: [File Upload](09-file-upload.md)

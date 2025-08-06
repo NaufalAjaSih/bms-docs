@@ -1,0 +1,521 @@
+# Route Standards
+
+## Daftar Isi
+
+-   [Struktur Dasar Route](#struktur-dasar-route)
+-   [Resource Routes](#resource-routes)
+-   [Modal vs Page Routes](#modal-vs-page-routes)
+-   [Custom Routes](#custom-routes)
+-   [Route Groups](#route-groups)
+-   [Middleware](#middleware)
+-   [Route Naming](#route-naming)
+-   [Best Practices](#best-practices)
+
+## Struktur Dasar Route
+
+### Template Dasar
+
+```php
+<?php
+
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\{ControllerName};
+
+// Resource routes
+Route::resource('admin/entity-name', {ControllerName}::class);
+
+// Custom routes
+Route::get('admin/entity-name/export', [{ControllerName}::class, 'export'])
+    ->name('entity-name.export');
+```
+
+### Contoh Implementasi
+
+```php
+<?php
+
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\BiodataModalController;
+use App\Http\Controllers\BiodataPageController;
+
+// Resource routes untuk Modal dan Page
+Route::resource('admin/biodata-modal', BiodataModalController::class);
+Route::resource('admin/biodata-page', BiodataPageController::class);
+
+// Custom routes
+Route::get('admin/biodata/export', [BiodataController::class, 'export'])
+    ->name('biodata.export');
+```
+
+## Resource Routes
+
+### Template Resource Route
+
+```php
+// Basic resource route
+Route::resource('admin/entity-name', {ControllerName}::class);
+
+// Resource route dengan options
+Route::resource('admin/entity-name', {ControllerName}::class)
+    ->names('entity-name')
+    ->parameters(['entity-name' => 'entity'])
+    ->except(['destroy'])
+    ->only(['index', 'show', 'store', 'update']);
+```
+
+### Resource Route Options
+
+```php
+// Names - Custom route names
+Route::resource('admin/entity-name', {ControllerName}::class)
+    ->names([
+        'index' => 'entity-name.list',
+        'create' => 'entity-name.create',
+        'store' => 'entity-name.save',
+        'show' => 'entity-name.view',
+        'edit' => 'entity-name.edit',
+        'update' => 'entity-name.update',
+        'destroy' => 'entity-name.delete',
+    ]);
+
+// Parameters - Custom parameter names
+Route::resource('admin/entity-name', {ControllerName}::class)
+    ->parameters(['entity-name' => 'entity']);
+
+// Except - Exclude specific routes
+Route::resource('admin/entity-name', {ControllerName}::class)
+    ->except(['destroy']);
+
+// Only - Include only specific routes
+Route::resource('admin/entity-name', {ControllerName}::class)
+    ->only(['index', 'show', 'store', 'update']);
+```
+
+## Modal vs Page Routes
+
+### Modal Routes
+
+```php
+// Modal CRUD routes
+Route::resource('admin/biodata-modal', BiodataModalController::class);
+
+// Generated routes:
+// GET    /admin/biodata-modal              biodata-modal.index
+// POST   /admin/biodata-modal              biodata-modal.store
+// GET    /admin/biodata-modal/{id}         biodata-modal.show
+// PUT    /admin/biodata-modal/{id}         biodata-modal.update
+// DELETE /admin/biodata-modal/{id}         biodata-modal.destroy
+```
+
+### Page Routes
+
+```php
+// Page CRUD routes
+Route::resource('admin/biodata-page', BiodataPageController::class);
+
+// Generated routes:
+// GET    /admin/biodata-page               biodata-page.index
+// GET    /admin/biodata-page/create        biodata-page.create
+// POST   /admin/biodata-page               biodata-page.store
+// GET    /admin/biodata-page/{id}          biodata-page.show
+// GET    /admin/biodata-page/{id}/edit     biodata-page.edit
+// PUT    /admin/biodata-page/{id}          biodata-page.update
+// DELETE /admin/biodata-page/{id}          biodata-page.destroy
+```
+
+### Perbedaan Modal vs Page Routes
+
+| Aspek      | Modal Routes                           | Page Routes                                                   |
+| ---------- | -------------------------------------- | ------------------------------------------------------------- |
+| **Create** | POST `/admin/biodata-modal`            | GET `/admin/biodata-page/create` + POST `/admin/biodata-page` |
+| **Show**   | GET `/admin/biodata-modal/{id}` (JSON) | GET `/admin/biodata-page/{id}` (View)                         |
+| **Edit**   | GET `/admin/biodata-modal/{id}` (JSON) | GET `/admin/biodata-page/{id}/edit` (View)                    |
+| **Update** | PUT `/admin/biodata-modal/{id}`        | PUT `/admin/biodata-page/{id}`                                |
+| **Delete** | DELETE `/admin/biodata-modal/{id}`     | DELETE `/admin/biodata-page/{id}`                             |
+
+## Custom Routes
+
+### Custom Action Routes
+
+```php
+// Export data
+Route::get('admin/biodata/export', [BiodataController::class, 'export'])
+    ->name('biodata.export');
+
+// Import data
+Route::post('admin/biodata/import', [BiodataController::class, 'import'])
+    ->name('biodata.import');
+
+// Bulk actions
+Route::post('admin/biodata/bulk-delete', [BiodataController::class, 'bulkDelete'])
+    ->name('biodata.bulk-delete');
+
+Route::post('admin/biodata/bulk-update', [BiodataController::class, 'bulkUpdate'])
+    ->name('biodata.bulk-update');
+
+// Status change
+Route::patch('admin/biodata/{id}/status', [BiodataController::class, 'changeStatus'])
+    ->name('biodata.change-status');
+
+// File download
+Route::get('admin/biodata/{id}/download', [BiodataController::class, 'download'])
+    ->name('biodata.download');
+```
+
+### API Routes
+
+```php
+// API routes untuk mobile app atau external services
+Route::prefix('api/v1')->group(function () {
+    Route::apiResource('biodata', BiodataApiController::class);
+
+    Route::get('biodata/search', [BiodataApiController::class, 'search']);
+    Route::post('biodata/upload', [BiodataApiController::class, 'upload']);
+});
+```
+
+## Route Groups
+
+### Admin Group
+
+```php
+// Admin routes group
+Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(function () {
+
+    // Dashboard
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Biodata routes
+    Route::resource('biodata-modal', BiodataModalController::class);
+    Route::resource('biodata-page', BiodataPageController::class);
+
+    // Custom biodata routes
+    Route::get('biodata/export', [BiodataController::class, 'export'])->name('biodata.export');
+    Route::post('biodata/import', [BiodataController::class, 'import'])->name('biodata.import');
+
+    // User routes
+    Route::resource('users', UserController::class);
+
+    // Settings routes
+    Route::get('settings', [SettingController::class, 'index'])->name('settings');
+    Route::post('settings', [SettingController::class, 'update'])->name('settings.update');
+});
+```
+
+### Entity Group
+
+```php
+// Group routes by entity
+Route::prefix('admin/biodata')->name('admin.biodata.')->middleware(['auth'])->group(function () {
+
+    // Modal routes
+    Route::prefix('modal')->name('modal.')->group(function () {
+        Route::get('/', [BiodataModalController::class, 'index'])->name('index');
+        Route::post('/', [BiodataModalController::class, 'store'])->name('store');
+        Route::get('/{id}', [BiodataModalController::class, 'show'])->name('show');
+        Route::put('/{id}', [BiodataModalController::class, 'update'])->name('update');
+        Route::delete('/{id}', [BiodataModalController::class, 'destroy'])->name('destroy');
+    });
+
+    // Page routes
+    Route::prefix('page')->name('page.')->group(function () {
+        Route::get('/', [BiodataPageController::class, 'index'])->name('index');
+        Route::get('/create', [BiodataPageController::class, 'create'])->name('create');
+        Route::post('/', [BiodataPageController::class, 'store'])->name('store');
+        Route::get('/{id}', [BiodataPageController::class, 'show'])->name('show');
+        Route::get('/{id}/edit', [BiodataPageController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [BiodataPageController::class, 'update'])->name('update');
+        Route::delete('/{id}', [BiodataPageController::class, 'destroy'])->name('destroy');
+    });
+
+    // Custom routes
+    Route::get('export', [BiodataController::class, 'export'])->name('export');
+    Route::post('import', [BiodataController::class, 'import'])->name('import');
+});
+```
+
+## Middleware
+
+### Basic Middleware
+
+```php
+// Single middleware
+Route::resource('admin/biodata-modal', BiodataModalController::class)
+    ->middleware('auth');
+
+// Multiple middleware
+Route::resource('admin/biodata-modal', BiodataModalController::class)
+    ->middleware(['auth', 'admin', 'verified']);
+
+// Conditional middleware
+Route::resource('admin/biodata-modal', BiodataModalController::class)
+    ->middleware('auth')
+    ->middleware('admin')->except(['index', 'show']);
+```
+
+### Custom Middleware
+
+```php
+// Custom middleware untuk role
+Route::resource('admin/biodata-modal', BiodataModalController::class)
+    ->middleware(['auth', 'role:admin']);
+
+// Custom middleware untuk permission
+Route::resource('admin/biodata-modal', BiodataModalController::class)
+    ->middleware(['auth', 'permission:biodata.*']);
+
+// Different middleware for different actions
+Route::resource('admin/biodata-modal', BiodataModalController::class)
+    ->middleware('auth')
+    ->middleware('permission:biodata.view')->only(['index', 'show'])
+    ->middleware('permission:biodata.create')->only(['store'])
+    ->middleware('permission:biodata.edit')->only(['update'])
+    ->middleware('permission:biodata.delete')->only(['destroy']);
+```
+
+## Route Naming
+
+### Naming Convention
+
+| Jenis Route        | Format                      | Contoh                      |
+| ------------------ | --------------------------- | --------------------------- |
+| **Resource Route** | `{entity}.{action}`         | `biodata-modal.index`       |
+| **Custom Route**   | `{entity}.{action}`         | `biodata.export`            |
+| **Group Route**    | `{group}.{entity}.{action}` | `admin.biodata-modal.index` |
+
+### Route Name Examples
+
+```php
+// Modal routes
+Route::resource('admin/biodata-modal', BiodataModalController::class);
+// Generated names:
+// biodata-modal.index
+// biodata-modal.store
+// biodata-modal.show
+// biodata-modal.update
+// biodata-modal.destroy
+
+// Page routes
+Route::resource('admin/biodata-page', BiodataPageController::class);
+// Generated names:
+// biodata-page.index
+// biodata-page.create
+// biodata-page.store
+// biodata-page.show
+// biodata-page.edit
+// biodata-page.update
+// biodata-page.destroy
+
+// Custom routes
+Route::get('admin/biodata/export', [BiodataController::class, 'export'])
+    ->name('biodata.export');
+Route::post('admin/biodata/import', [BiodataController::class, 'import'])
+    ->name('biodata.import');
+```
+
+### Custom Route Names
+
+```php
+// Custom names untuk resource route
+Route::resource('admin/biodata-modal', BiodataModalController::class)
+    ->names([
+        'index' => 'biodata.list',
+        'create' => 'biodata.create',
+        'store' => 'biodata.save',
+        'show' => 'biodata.view',
+        'edit' => 'biodata.edit',
+        'update' => 'biodata.update',
+        'destroy' => 'biodata.delete',
+    ]);
+```
+
+## Contoh Route File Lengkap
+
+### web.php
+
+```php
+<?php
+
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\BiodataModalController;
+use App\Http\Controllers\BiodataPageController;
+use App\Http\Controllers\BiodataController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\SettingController;
+
+// Public routes
+Route::get('/', function () {
+    return redirect()->route('admin.dashboard');
+});
+
+// Admin routes group
+Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(function () {
+
+    // Dashboard
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Biodata Modal CRUD
+    Route::resource('biodata-modal', BiodataModalController::class);
+
+    // Biodata Page CRUD
+    Route::resource('biodata-page', BiodataPageController::class);
+
+    // Biodata Custom Actions
+    Route::prefix('biodata')->name('biodata.')->group(function () {
+        Route::get('export', [BiodataController::class, 'export'])->name('export');
+        Route::post('import', [BiodataController::class, 'import'])->name('import');
+        Route::post('bulk-delete', [BiodataController::class, 'bulkDelete'])->name('bulk-delete');
+        Route::patch('{id}/status', [BiodataController::class, 'changeStatus'])->name('change-status');
+        Route::get('{id}/download', [BiodataController::class, 'download'])->name('download');
+    });
+
+    // User Management
+    Route::resource('users', UserController::class);
+
+    // Settings
+    Route::get('settings', [SettingController::class, 'index'])->name('settings');
+    Route::post('settings', [SettingController::class, 'update'])->name('settings.update');
+});
+
+// API routes (if needed)
+Route::prefix('api/v1')->name('api.')->middleware(['auth:sanctum'])->group(function () {
+    Route::apiResource('biodata', BiodataApiController::class);
+    Route::get('biodata/search', [BiodataApiController::class, 'search'])->name('biodata.search');
+});
+```
+
+### api.php
+
+```php
+<?php
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\BiodataApiController;
+
+// Public API routes
+Route::post('login', [AuthController::class, 'login']);
+
+// Protected API routes
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('user', function (Request $request) {
+        return $request->user();
+    });
+
+    // Biodata API
+    Route::apiResource('biodata', BiodataApiController::class);
+    Route::get('biodata/search', [BiodataApiController::class, 'search']);
+    Route::post('biodata/upload', [BiodataApiController::class, 'upload']);
+
+    Route::post('logout', [AuthController::class, 'logout']);
+});
+```
+
+## Best Practices
+
+### 1. **Route Organization**
+
+-   Kelompokkan route berdasarkan fungsionalitas
+-   Gunakan prefix untuk admin routes
+-   Pisahkan API routes dari web routes
+
+### 2. **Naming Convention**
+
+-   Gunakan kebab-case untuk URL
+-   Gunakan dot notation untuk route names
+-   Berikan nama yang deskriptif dan konsisten
+
+### 3. **Security**
+
+-   Selalu gunakan middleware untuk proteksi
+-   Implementasikan role-based access control
+-   Validasi input di setiap route
+
+### 4. **Performance**
+
+-   Gunakan route caching untuk production
+-   Hindari route yang tidak perlu
+-   Optimasi middleware chain
+
+### 5. **Maintainability**
+
+-   Dokumentasikan custom routes
+-   Gunakan route groups untuk organisasi
+-   Konsisten dalam penamaan
+
+### 6. **Scalability**
+
+-   Rencanakan struktur route untuk masa depan
+-   Gunakan versioning untuk API routes
+-   Pertimbangkan microservices architecture
+
+## Checklist Route
+
+### Structure
+
+-   [ ] Proper route organization
+-   [ ] Route groups implementation
+-   [ ] Consistent naming convention
+-   [ ] Clear separation of concerns
+
+### Resource Routes
+
+-   [ ] Modal CRUD routes defined
+-   [ ] Page CRUD routes defined
+-   [ ] Proper route names
+-   [ ] Correct HTTP methods
+
+### Custom Routes
+
+-   [ ] Export/import routes
+-   [ ] Bulk action routes
+-   [ ] Status change routes
+-   [ ] File download routes
+
+### Security
+
+-   [ ] Authentication middleware
+-   [ ] Authorization middleware
+-   [ ] Role-based access
+-   [ ] Input validation
+
+### Performance
+
+-   [ ] Route caching enabled
+-   [ ] Optimized middleware
+-   [ ] Efficient route structure
+-   [ ] Minimal route overhead
+
+### Documentation
+
+-   [ ] Route documentation
+-   [ ] Clear route names
+-   [ ] Consistent patterns
+-   [ ] Easy to understand
+
+## Route Testing
+
+### Basic Route Test
+
+```php
+// Test resource routes
+public function test_biodata_modal_routes()
+{
+    $this->get('/admin/biodata-modal')->assertStatus(200);
+    $this->post('/admin/biodata-modal')->assertStatus(302);
+    $this->get('/admin/biodata-modal/1')->assertStatus(200);
+    $this->put('/admin/biodata-modal/1')->assertStatus(302);
+    $this->delete('/admin/biodata-modal/1')->assertStatus(302);
+}
+
+// Test custom routes
+public function test_biodata_export_route()
+{
+    $this->get('/admin/biodata/export')->assertStatus(200);
+}
+```
+
+---
+
+**Selanjutnya**: [View Standards](06-view-standards.md)

@@ -5,5 +5,10 @@ export default {
   },
   structure: "Struktur Project",
   controller: "Controller Standart",
+  migration: "Migration Standart",
   model: "Model Standart",
+  view: "View Standart",
+  routing: "Route Standart",
+  validation: "Validation Standart",
+  error: "Error Handling Standart",
 };
