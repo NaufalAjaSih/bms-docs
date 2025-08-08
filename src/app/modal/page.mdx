@@ -303,30 +303,30 @@ View menggunakan **Bootstrap 4** untuk modal dan **DataTables** untuk tabel. Ber
 ```blade
 @extends('admin.layout')
 @section('content')
-    <div className="content-wrapper">
-        <section className="content-header">
-            <div className="container-fluid">
+    <div class="content-wrapper">
+        <section class="content-header">
+            <div class="container-fluid">
             </div>
         </section>
 
-        <section className="content">
-            <div className="container-fluid">
-                <div className="row">
-                    <div className="col-12">
-                        <div className="card">
-                            <div className="card-header p-3">
-                                <div className="d-flex align-content-center justify-content-between">
-                                    <h3 className="font-weight-bold text-lg">Product Management</h3>
-                                    <div className="d-flex align-items-center">
-                                        <button type="button" className="btn btn-sm btn-primary" data-toggle="modal"
+        <section class="content">
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header p-3">
+                                <div class="d-flex align-content-center justify-content-between">
+                                    <h3 class="font-weight-bold text-lg">Product Management</h3>
+                                    <div class="d-flex align-items-center">
+                                        <button type="button" class="btn btn-sm btn-primary" data-toggle="modal"
                                             data-target="#modalForm">
-                                            <i className="fas fa-plus"></i> Add Product
+                                            <i class="fas fa-plus"></i> Add Product
                                         </button>
                                     </div>
                                 </div>
                             </div>
-                            <div className="card-body">
-                                <table className="table table-bordered table-striped data-table w-100">
+                            <div class="card-body">
+                                <table class="table table-bordered table-striped data-table w-100">
                                     <thead>
                                         <tr>
                                             <th width="50px">No</th>
@@ -350,58 +350,58 @@ View menggunakan **Bootstrap 4** untuk modal dan **DataTables** untuk tabel. Ber
         </section>
     </div>
 
-    <div className="modal fade" id="modalForm" tabIndex={-1} role="dialog" data-focus="false" aria-labelledby="modalFormLabel"
+    <div class="modal fade" id="modalForm" tabIndex={-1} role="dialog" data-focus="false" aria-labelledby="modalFormLabel"
         aria-hidden="true" data-backdrop="static" data-keyboard="false">
-        <div className="modal-dialog modal-dialog-centered modal-md" role="document">
-            <div className="modal-content">
-                <div className="modal-header bg-primary">
-                    <h5 className="modal-title text-white font-weight-bold" id="modalFormLabel"></h5>
-                    <button type="button" className="close text-white" data-dismiss="modal" aria-label="Close">
+        <div class="modal-dialog modal-dialog-centered modal-md" role="document">
+            <div class="modal-content">
+                <div class="modal-header bg-primary">
+                    <h5 class="modal-title text-white font-weight-bold" id="modalFormLabel"></h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
                 <form id="formData" encType="multipart/form-data">
                     @csrf
                     <input type="hidden" id="primary_id" name="primary_id" />
-                    <div className="modal-body">
-                        <div className="form-group row">
-                            <label className="col-sm-4 col-form-label">Name*</label>
-                            <div className="col-sm-8">
-                                <input type="text" name="name" id="name" className="form-control" />
+                    <div class="modal-body">
+                        <div class="form-group row">
+                            <label class="col-sm-4 col-form-label">Name*</label>
+                            <div class="col-sm-8">
+                                <input type="text" name="name" id="name" class="form-control" />
                             </div>
                         </div>
-                        <div className="form-group row">
-                            <label className="col-sm-4 col-form-label">Description</label>
-                            <div className="col-sm-8">
-                                <textarea name="description" id="description" className="form-control" rows={3}></textarea>
+                        <div class="form-group row">
+                            <label class="col-sm-4 col-form-label">Description</label>
+                            <div class="col-sm-8">
+                                <textarea name="description" id="description" class="form-control" rows={3}></textarea>
                             </div>
                         </div>
-                        <div className="form-group row">
-                            <label className="col-sm-4 col-form-label">Price*</label>
-                            <div className="col-sm-8">
-                                <input type="number" name="price" id="price" className="form-control" min={0} />
+                        <div class="form-group row">
+                            <label class="col-sm-4 col-form-label">Price*</label>
+                            <div class="col-sm-8">
+                                <input type="number" name="price" id="price" class="form-control" min={0} />
                             </div>
                         </div>
-                        <div className="form-group row">
-                            <label className="col-sm-4 col-form-label">Stock*</label>
-                            <div className="col-sm-8">
-                                <input type="number" name="stock" id="stock" className="form-control" min={0} />
+                        <div class="form-group row">
+                            <label class="col-sm-4 col-form-label">Stock*</label>
+                            <div class="col-sm-8">
+                                <input type="number" name="stock" id="stock" class="form-control" min={0} />
                             </div>
                         </div>
-                        <div className="form-group row">
-                            <label className="col-sm-4 col-form-label">Image</label>
-                            <div className="col-sm-8">
-                                <div className="image-preview-container"
+                        <div class="form-group row">
+                            <label class="col-sm-4 col-form-label">Image</label>
+                            <div class="col-sm-8">
+                                <div class="image-preview-container"
                                     style={{width: '200px', height: '200px', border: '1px dashed #ccc', position: 'relative', cursor: 'pointer', overflow: 'hidden'}}>
-                                    <div className="no-image-placeholder"
+                                    <div class="no-image-placeholder"
                                         style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8f9fa'}}>
-                                        <i className="fas fa-image" style={{fontSize: '24px', color: '#6c757d'}}></i>
+                                        <i class="fas fa-image" style={{fontSize: '24px', color: '#6c757d'}}></i>
                                     </div>
                                     <img id="image-preview" src="" alt="Preview"
                                         style={{width: '100%', height: '100%', objectFit: 'cover', display: 'none'}} />
-                                    <button type="button" id="remove-image-btn" className="btn btn-danger btn-xs"
+                                    <button type="button" id="remove-image-btn" class="btn btn-danger btn-xs"
                                         style={{position: 'absolute', top: '2px', right: '2px', display: 'none'}}>
-                                        <i className="fas fa-times"></i>
+                                        <i class="fas fa-times"></i>
                                     </button>
                                 </div>
                                 <input type="file" name="image_path" id="image_path" accept=".jpg, .jpeg, .png"
@@ -409,10 +409,10 @@ View menggunakan **Bootstrap 4** untuk modal dan **DataTables** untuk tabel. Ber
                                 <input type="hidden" name="remove_image" id="remove_image" value="0" />
                             </div>
                         </div>
-                        <div className="form-group row">
-                            <label className="col-sm-4 col-form-label">Status</label>
-                            <div className="col-sm-8">
-                                <select name="is_active" id="is_active" className="form-control select-status">
+                        <div class="form-group row">
+                            <label class="col-sm-4 col-form-label">Status</label>
+                            <div class="col-sm-8">
+                                <select name="is_active" id="is_active" class="form-control select-status">
                                     <option value=""></option>
                                     <option value="true">Aktif</option>
                                     <option value="false">NonAktif</option>
@@ -420,12 +420,12 @@ View menggunakan **Bootstrap 4** untuk modal dan **DataTables** untuk tabel. Ber
                             </div>
                         </div>
                     </div>
-                    <div className="modal-footer">
-                        <button type="button" className="btn btn-danger" data-dismiss="modal">Cancel</button>
-                        <button type="submit" className="btn btn-primary ms-1" id="submitBtn">
-                            <span className="spinner-border spinner-border-sm mx-1 d-none" role="status"
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-danger" data-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary ms-1" id="submitBtn">
+                            <span class="spinner-border spinner-border-sm mx-1 d-none" role="status"
                                 aria-hidden="true"></span>
-                            <span className="button-text">Save</span>
+                            <span class="button-text">Save</span>
                         </button>
                     </div>
                 </form>
@@ -458,14 +458,14 @@ View menggunakan **Bootstrap 4** untuk modal dan **DataTables** untuk tabel. Ber
                         name: 'DT_RowIndex',
                         orderable: false,
                         searchable: false,
-                        className: 'text-center'
+                        class: 'text-center'
                     },
                     {
                         data: 'image',
                         name: 'image',
                         orderable: false,
                         searchable: false,
-                        className: 'text-center'
+                        class: 'text-center'
                     },
                     {
                         data: 'name',
@@ -496,14 +496,14 @@ View menggunakan **Bootstrap 4** untuk modal dan **DataTables** untuk tabel. Ber
                         name: 'is_active',
                         orderable: false,
                         searchable: false,
-                        className: 'text-center'
+                        class: 'text-center'
                     },
                     {
                         data: 'action',
                         name: 'action',
                         orderable: false,
                         searchable: false,
-                        className: 'text-center'
+                        class: 'text-center'
                     }
                 ],
                 columnDefs: [{
@@ -660,7 +660,7 @@ View menggunakan **Bootstrap 4** untuk modal dan **DataTables** untuk tabel. Ber
                             input.addClass('is-invalid');
                             input.parent().find('.invalid-feedback').remove();
                             input.parent().append(
-                                '<span className="invalid-feedback" role="alert"><strong>' +
+                                '<span class="invalid-feedback" role="alert"><strong>' +
                                 val[0] + '</strong></span>'
                             );
                         });
@@ -691,7 +691,7 @@ View menggunakan **Bootstrap 4** untuk modal dan **DataTables** untuk tabel. Ber
                 text: 'This product will be permanently deleted!',
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonText: '<span className="swal-btn-text">Yes, Delete</span>',
+                confirmButtonText: '<span class="swal-btn-text">Yes, Delete</span>',
                 cancelButtonText: 'Cancel',
                 showLoaderOnConfirm: false,
                 buttonsStyling: false,
@@ -705,7 +705,7 @@ View menggunakan **Bootstrap 4** untuk modal dan **DataTables** untuk tabel. Ber
                         const btnText = confirmBtn.querySelector('.swal-btn-text');
 
                         btnText.innerHTML =
-                            `<span className="spinner-border spinner-border-sm mx-2" role="status" aria-hidden="true"></span> Deleting...`;
+                            `<span class="spinner-border spinner-border-sm mx-2" role="status" aria-hidden="true"></span> Deleting...`;
                         confirmBtn.disabled = true;
 
                         $.ajax({
@@ -834,14 +834,14 @@ DataTables digunakan untuk menampilkan data secara server-side dengan fitur penc
           ordering: false,
           ajax: "{{ route('products.index') }}",
           columns: [
-              { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false, className: 'text-center' },
-              { data: 'image', name: 'image', orderable: false, searchable: false, className: 'text-center' },
+              { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false, class: 'text-center' },
+              { data: 'image', name: 'image', orderable: false, searchable: false, class: 'text-center' },
               { data: 'name', name: 'name', orderable: false, searchable: true },
               { data: 'description', name: 'description', orderable: false, searchable: false },
               { data: 'price', name: 'price', orderable: false, searchable: false },
               { data: 'stock', name: 'stock', orderable: false, searchable: false },
-              { data: 'is_active', name: 'is_active', orderable: false, searchable: false, className: 'text-center' },
-              { data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-center' }
+              { data: 'is_active', name: 'is_active', orderable: false, searchable: false, class: 'text-center' },
+              { data: 'action', name: 'action', orderable: false, searchable: false, class: 'text-center' }
           ],
           columnDefs: [{
               targets: 0,
@@ -875,7 +875,7 @@ DataTables digunakan untuk menampilkan data secara server-side dengan fitur penc
       text: 'This product will be permanently deleted!',
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: '<span className="swal-btn-text">Yes, Delete</span>',
+      confirmButtonText: '<span class="swal-btn-text">Yes, Delete</span>',
       cancelButtonText: 'Cancel',
       showLoaderOnConfirm: false,
       buttonsStyling: false,
