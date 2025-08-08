@@ -11,4 +11,5 @@ export default {
   routing: "Route Standart",
   validation: "Validation Standart",
   error: "Error Handling Standart",
+  modal: "CRUD With Modal Standart",
 };

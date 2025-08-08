@@ -1,0 +1,924 @@
+# Standardisasi Pengembangan CRUD dengan Modal di Laravel
+
+Dokumentasi ini menyediakan panduan standar untuk mengembangkan aplikasi berbasis **CRUD** (*Create, Read, Update, Delete*) menggunakan Laravel dengan pendekatan modal untuk antarmuka pengguna. Dokumentasi ini mencakup struktur kode untuk **Model**, **Controller**, dan **View**, serta penjelasan rinci tentang implementasi fitur seperti **image preview**, inisialisasi **Select2**, dan pengelolaan data menggunakan **DataTables**. Tujuannya adalah untuk memastikan konsistensi dan efisiensi dalam pengembangan aplikasi oleh tim.
+
+## 1. Struktur Model
+
+Model dalam Laravel digunakan untuk mengelola data dan berinteraksi dengan database. Berikut adalah panduan standar untuk membuat model:
+
+### Aturan
+- Gunakan nama model dalam bentuk **singular** sesuai dengan nama tabel dalam bentuk **plural** di database (misalnya, model `Product` untuk tabel `products`).
+- Tentukan atribut yang dapat diisi massal (`$fillable`) untuk mencegah *mass assignment vulnerability*.
+- Gunakan `$casts` untuk mengatur tipe data tertentu, seperti `boolean` untuk status aktif/tidak aktif.
+- Hindari logika bisnis di dalam model; simpan logika di controller atau service class.
+
+### Contoh Kode Model
+```php
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class Product extends Model
+{
+    protected $fillable = [
+        'name',
+        'description',
+        'price',
+        'stock',
+        'image_path',
+        'is_active',
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
+    ];
+}
+```
+
+### Penjelasan
+- **`$fillable`**: Menentukan kolom yang dapat diisi melalui *mass assignment*.
+- **`$casts`**: Mengonversi `is_active` menjadi tipe `boolean` untuk memastikan nilai `true`/`false` diolah dengan benar.
+
+## 2. Struktur Controller
+
+Controller menangani logika bisnis dan komunikasi antara model dan view. Berikut adalah panduan untuk membuat controller CRUD:
+
+### Aturan
+- Gunakan **Yajra DataTables** untuk menangani data tabel secara server-side.
+- Validasi input menggunakan `$request->validate()` dengan aturan dan pesan error yang jelas.
+- Gunakan transaksi database (`DB::beginTransaction()`) untuk operasi create, update, dan delete untuk menjaga integritas data.
+- Simpan file gambar di folder `public/assets/[nama_entitas]/` dengan nama unik menggunakan `Str::random()`.
+- Kembalikan respons JSON untuk operasi AJAX dengan format standar:
+  ```json
+  {
+      "status": "success/error",
+      "message": "Pesan sukses atau error",
+      "data": {} // Opsional, untuk data tambahan
+  }
+  ```
+
+### Contoh Kode Controller
+```php
+namespace App\Http\Controllers;
+
+use App\Models\Product;
+use Illuminate\Support\Str;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Yajra\DataTables\Facades\DataTables;
+
+class ProductController extends Controller
+{
+    public function index(Request $request)
+    {
+        Carbon::setLocale('id');
+
+        if ($request->ajax()) {
+            $data = Product::orderBy('id', 'desc');
+
+            return DataTables::of($data)
+                ->addIndexColumn()
+                ->editColumn('image', function ($row) {
+                    return $row->image_path ? '<img src="' . asset('assets/product/' . $row->image_path) . '" width="50" height="50">' : 'No Image';
+                })
+                ->editColumn('is_active', function ($row) {
+                    return $row->is_active ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Inactive</span>';
+                })
+                ->addColumn('action', function ($row) {
+                    $showUrl = route('products.show', $row->id);
+                    $deleteUrl = route('products.destroy', $row->id);
+
+                    $btn = '<div class="d-flex justify-content-center">';
+                    $btn .= '<button class="btn btn-primary btn-sm edit-button" data-id="' . e($row->id) . '" data-url="' . e($showUrl) . '">Edit</button>';
+                    $btn .= '<form action="' . e($deleteUrl) . '" method="POST" style="display:inline;">' . csrf_field() . method_field('DELETE') . '<button type="submit" class="delete-button btn btn-danger btn-sm ml-2">Hapus</button></form>';
+                    $btn .= '</div>';
+                    return $btn;
+                })
+                ->rawColumns(['image', 'is_active', 'action'])
+                ->make(true);
+        }
+
+        return view('admin.product.index');
+    }
+
+    public function show($id)
+    {
+        $data = Product::findOrFail($id);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $data,
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $rules = [
+            'name' => 'required|unique:products,name',
+            'description' => 'nullable|string',
+            'price' => 'required|numeric|min:0',
+            'stock' => 'required|integer|min:0',
+            'image_path' => 'nullable|file|mimes:jpeg,png,jpg|max:2048',
+            'is_active' => 'nullable|in:true,false',
+        ];
+
+        $messages = [
+            'name.required' => 'Nama produk wajib diisi.',
+            'name.unique' => 'Nama produk sudah digunakan.',
+            'description.string' => 'Deskripsi harus berupa teks.',
+            'price.required' => 'Harga wajib diisi.',
+            'price.numeric' => 'Harga harus berupa angka.',
+            'price.min' => 'Harga tidak boleh kurang dari 0.',
+            'stock.required' => 'Stok wajib diisi.',
+            'stock.integer' => 'Stok harus berupa angka bulat.',
+            'stock.min' => 'Stok tidak boleh kurang dari 0.',
+            'image_path.file' => 'Gambar harus berupa file.',
+            'image_path.mimes' => 'Format gambar harus jpeg, png, atau jpg.',
+            'image_path.max' => 'Ukuran gambar maksimal 2MB.',
+        ];
+
+        $request->validate($rules, $messages);
+
+        DB::beginTransaction();
+
+        try {
+            $filename = '';
+            if ($request->hasFile('image_path')) {
+                $image = $request->file('image_path');
+                $ext = $image->getClientOriginalExtension();
+                $filename = Str::random(25) . '.' . $ext;
+                $image->move(public_path('assets/product/'), $filename);
+            }
+
+            $db = [
+                'name' => $request->name,
+                'description' => $request->description,
+                'price' => $request->price,
+                'stock' => $request->stock,
+                'image_path' => $filename,
+                'is_active' => $request->is_active === 'true',
+            ];
+
+            Product::create($db);
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Produk berhasil ditambahkan.'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'status' => 'error',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function update(Request $request, $id)
+    {
+        $data = Product::findOrFail($id);
+
+        $rules = [
+            'name' => 'required|unique:products,name,' . $data->id,
+            'description' => 'nullable|string',
+            'price' => 'required|numeric|min:0',
+            'stock' => 'required|integer|min:0',
+            'image_path' => 'nullable|file|mimes:jpeg,png,jpg|max:2048',
+            'is_active' => 'nullable|in:true,false',
+        ];
+
+        $messages = [
+            'name.required' => 'Nama produk wajib diisi.',
+            'name.unique' => 'Nama produk sudah digunakan.',
+            'description.string' => 'Deskripsi harus berupa teks.',
+            'price.required' => 'Harga wajib diisi.',
+            'price.numeric' => 'Harga harus berupa angka.',
+            'price.min' => 'Harga tidak boleh kurang dari 0.',
+            'stock.required' => 'Stok wajib diisi.',
+            'stock.integer' => 'Stok harus berupa angka bulat.',
+            'stock.min' => 'Stok tidak boleh kurang dari 0.',
+            'image_path.file' => 'Gambar harus berupa file.',
+            'image_path.mimes' => 'Format gambar harus jpeg, png, atau jpg.',
+            'image_path.max' => 'Ukuran gambar maksimal 2MB.',
+        ];
+
+        $request->validate($rules, $messages);
+
+        DB::beginTransaction();
+
+        try {
+            $filename = $data->image_path;
+            if ($request->hasFile('image_path')) {
+                if (!empty($data->image_path) && file_exists(public_path('assets/product/' . $data->image_path))) {
+                    unlink(public_path('assets/product/' . $data->image_path));
+                }
+
+                $image = $request->file('image_path');
+                $ext = $image->getClientOriginalExtension();
+                $filename = Str::random(25) . '.' . $ext;
+                $image->move(public_path('assets/product/'), $filename);
+            }
+
+            $db = [
+                'name' => $request->name,
+                'description' => $request->description,
+                'price' => $request->price,
+                'stock' => $request->stock,
+                'image_path' => $filename,
+                'is_active' => $request->is_active === 'true',
+            ];
+
+            $data->update($db);
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Produk berhasil diperbarui.'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'status' => 'error',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function destroy($id)
+    {
+        DB::beginTransaction();
+        try {
+            $data = Product::findOrFail($id);
+
+            if (!empty($data->image_path) && file_exists(public_path('assets/product/' . $data->image_path))) {
+                unlink(public_path('assets/product/' . $data->image_path));
+            }
+
+            $data->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Produk berhasil dihapus.'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'status' => 'error',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+}
+```
+
+### Penjelasan
+- **Index**: Menangani tampilan halaman dan data tabel menggunakan DataTables. Kolom seperti gambar dan status dirender dengan HTML khusus.
+- **Show**: Mengambil data spesifik untuk pengeditan.
+- **Store/Update**: Memvalidasi input, mengelola upload gambar, dan menyimpan data dengan transaksi.
+- **Destroy**: Menghapus data dan file gambar terkait.
+- **Validasi**: Menggunakan aturan validasi dan pesan error dalam bahasa Indonesia untuk konsistensi.
+
+## 3. Struktur View
+
+View menggunakan **Bootstrap 4** untuk modal dan **DataTables** untuk tabel. Berikut adalah panduan untuk membuat view:
+
+### Aturan
+- Gunakan **layout** utama (misalnya, `admin.layout`) untuk konsistensi tampilan.
+- Implementasikan **modal** untuk operasi create dan update.
+- Gunakan **Select2** untuk dropdown dengan inisialisasi yang sesuai.
+- Tambahkan **image preview** untuk upload gambar dengan placeholder dan tombol hapus.
+- Gunakan **Toastr** untuk notifikasi dan **SweetAlert2** untuk konfirmasi hapus.
+- Pastikan semua input memiliki validasi sisi klien dan server.
+
+### Contoh Kode View
+```blade
+@extends('admin.layout')
+@section('content')
+    <div className="content-wrapper">
+        <section className="content-header">
+            <div className="container-fluid">
+            </div>
+        </section>
+
+        <section className="content">
+            <div className="container-fluid">
+                <div className="row">
+                    <div className="col-12">
+                        <div className="card">
+                            <div className="card-header p-3">
+                                <div className="d-flex align-content-center justify-content-between">
+                                    <h3 className="font-weight-bold text-lg">Product Management</h3>
+                                    <div className="d-flex align-items-center">
+                                        <button type="button" className="btn btn-sm btn-primary" data-toggle="modal"
+                                            data-target="#modalForm">
+                                            <i className="fas fa-plus"></i> Add Product
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="card-body">
+                                <table className="table table-bordered table-striped data-table w-100">
+                                    <thead>
+                                        <tr>
+                                            <th width="50px">No</th>
+                                            <th>Image</th>
+                                            <th>Name</th>
+                                            <th>Description</th>
+                                            <th>Price</th>
+                                            <th>Stock</th>
+                                            <th>Status</th>
+                                            <th width="100px">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div className="modal fade" id="modalForm" tabIndex={-1} role="dialog" data-focus="false" aria-labelledby="modalFormLabel"
+        aria-hidden="true" data-backdrop="static" data-keyboard="false">
+        <div className="modal-dialog modal-dialog-centered modal-md" role="document">
+            <div className="modal-content">
+                <div className="modal-header bg-primary">
+                    <h5 className="modal-title text-white font-weight-bold" id="modalFormLabel"></h5>
+                    <button type="button" className="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form id="formData" encType="multipart/form-data">
+                    @csrf
+                    <input type="hidden" id="primary_id" name="primary_id" />
+                    <div className="modal-body">
+                        <div className="form-group row">
+                            <label className="col-sm-4 col-form-label">Name*</label>
+                            <div className="col-sm-8">
+                                <input type="text" name="name" id="name" className="form-control" />
+                            </div>
+                        </div>
+                        <div className="form-group row">
+                            <label className="col-sm-4 col-form-label">Description</label>
+                            <div className="col-sm-8">
+                                <textarea name="description" id="description" className="form-control" rows={3}></textarea>
+                            </div>
+                        </div>
+                        <div className="form-group row">
+                            <label className="col-sm-4 col-form-label">Price*</label>
+                            <div className="col-sm-8">
+                                <input type="number" name="price" id="price" className="form-control" min={0} />
+                            </div>
+                        </div>
+                        <div className="form-group row">
+                            <label className="col-sm-4 col-form-label">Stock*</label>
+                            <div className="col-sm-8">
+                                <input type="number" name="stock" id="stock" className="form-control" min={0} />
+                            </div>
+                        </div>
+                        <div className="form-group row">
+                            <label className="col-sm-4 col-form-label">Image</label>
+                            <div className="col-sm-8">
+                                <div className="image-preview-container"
+                                    style={{width: '200px', height: '200px', border: '1px dashed #ccc', position: 'relative', cursor: 'pointer', overflow: 'hidden'}}>
+                                    <div className="no-image-placeholder"
+                                        style={{width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8f9fa'}}>
+                                        <i className="fas fa-image" style={{fontSize: '24px', color: '#6c757d'}}></i>
+                                    </div>
+                                    <img id="image-preview" src="" alt="Preview"
+                                        style={{width: '100%', height: '100%', objectFit: 'cover', display: 'none'}} />
+                                    <button type="button" id="remove-image-btn" className="btn btn-danger btn-xs"
+                                        style={{position: 'absolute', top: '2px', right: '2px', display: 'none'}}>
+                                        <i className="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <input type="file" name="image_path" id="image_path" accept=".jpg, .jpeg, .png"
+                                    style={{display: 'none'}} />
+                                <input type="hidden" name="remove_image" id="remove_image" value="0" />
+                            </div>
+                        </div>
+                        <div className="form-group row">
+                            <label className="col-sm-4 col-form-label">Status</label>
+                            <div className="col-sm-8">
+                                <select name="is_active" id="is_active" className="form-control select-status">
+                                    <option value=""></option>
+                                    <option value="true">Aktif</option>
+                                    <option value="false">NonAktif</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="modal-footer">
+                        <button type="button" className="btn btn-danger" data-dismiss="modal">Cancel</button>
+                        <button type="submit" className="btn btn-primary ms-1" id="submitBtn">
+                            <span className="spinner-border spinner-border-sm mx-1 d-none" role="status"
+                                aria-hidden="true"></span>
+                            <span className="button-text">Save</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+@endsection
+
+@push('scripts')
+    <script>
+        $(document).ready(function() {
+            $('.select-status').select2({
+                theme: "bootstrap4",
+                minimumResultsForSearch: Infinity,
+                placeholder: "Pilih Status",
+            });
+        });
+
+        var audio = new Audio('{{ asset('audio/notification.ogg') }}');
+
+        $(function() {
+            var table = $('.data-table').DataTable({
+                processing: true,
+                serverSide: true,
+                responsive: true,
+                ordering: false,
+                ajax: "{{ route('products.index') }}",
+                columns: [{
+                        data: 'DT_RowIndex',
+                        name: 'DT_RowIndex',
+                        orderable: false,
+                        searchable: false,
+                        className: 'text-center'
+                    },
+                    {
+                        data: 'image',
+                        name: 'image',
+                        orderable: false,
+                        searchable: false,
+                        className: 'text-center'
+                    },
+                    {
+                        data: 'name',
+                        name: 'name',
+                        orderable: false,
+                        searchable: true
+                    },
+                    {
+                        data: 'description',
+                        name: 'description',
+                        orderable: false,
+                        searchable: false
+                    },
+                    {
+                        data: 'price',
+                        name: 'price',
+                        orderable: false,
+                        searchable: false,
+                    },
+                    {
+                        data: 'stock',
+                        name: 'stock',
+                        orderable: false,
+                        searchable: false,
+                    },
+                    {
+                        data: 'is_active',
+                        name: 'is_active',
+                        orderable: false,
+                        searchable: false,
+                        className: 'text-center'
+                    },
+                    {
+                        data: 'action',
+                        name: 'action',
+                        orderable: false,
+                        searchable: false,
+                        className: 'text-center'
+                    }
+                ],
+                columnDefs: [{
+                    targets: 0,
+                    render: function(data, type, row, meta) {
+                        return meta.row + meta.settings._iDisplayStart + 1;
+                    }
+                }]
+            });
+        });
+
+        $(document).on('click', '.image-preview-container', function() {
+            $('#image_path').click();
+        });
+
+        $('#image_path').change(function(e) {
+            var input = this;
+            var preview = $('#image-preview');
+            var placeholder = $('.no-image-placeholder');
+            var removeBtn = $('#remove-image-btn');
+
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+
+                reader.onload = function(e) {
+                    preview.attr('src', e.target.result);
+                    preview.show();
+                    placeholder.hide();
+                    removeBtn.show();
+                    $('#remove_image').val(0);
+                }
+
+                reader.readAsDataURL(input.files[0]);
+            }
+        });
+
+        $('#remove-image-btn').click(function(e) {
+            e.stopPropagation();
+            $('#image-preview').attr('src', '').hide();
+            $('.no-image-placeholder').show();
+            $('#image_path').val('');
+            $('#remove_image').val(1);
+            $(this).hide();
+        });
+
+        $(document).on('click', '[data-target="#modalForm"]', function() {
+            $('#modalFormLabel').text('Add Product');
+        });
+
+        $(document).on('click', '.edit-button', function() {
+            var url = $(this).data('url');
+
+            $.get(url, function(response) {
+                if (response.status === 'success') {
+                    $('#modalFormLabel').text('Edit Product');
+                    $('#primary_id').val(response.data.id);
+                    $('#name').val(response.data.name);
+                    $('#description').val(response.data.description);
+                    $('#price').val(response.data.price);
+                    $('#stock').val(response.data.stock);
+                    $('#is_active').val(response.data.is_active ? 'true' : 'false').trigger('change');
+                    $('#remove_image').val(0);
+
+                    var preview = $('#image-preview');
+                    var placeholder = $('.no-image-placeholder');
+                    var removeBtn = $('#remove-image-btn');
+
+                    if (response.data.image_path) {
+                        preview.attr('src', '/assets/product/' + response.data.image_path);
+                        preview.show();
+                        placeholder.hide();
+                        removeBtn.show();
+                    } else {
+                        preview.hide();
+                        placeholder.show();
+                        removeBtn.hide();
+                    }
+
+                    $('#modalForm').modal('show');
+                }
+            });
+        });
+
+        $('#modalForm').on('hidden.bs.modal', function() {
+            $('#formData')[0].reset();
+            $('.is-invalid').removeClass('is-invalid');
+            $('.invalid-feedback').remove();
+            $('#is_active').val('').trigger('change');
+            $('#image-preview').attr('src', '').hide();
+            $('.no-image-placeholder').show();
+            $('#remove-image-btn').hide();
+            $('#remove_image').val(0);
+
+            let submitBtn = $('#submitBtn');
+            let spinner = submitBtn.find('.spinner-border');
+            let btnText = submitBtn.find('.button-text');
+
+            spinner.addClass('d-none');
+            btnText.text('Save');
+            submitBtn.prop('disabled', false);
+        });
+
+        $('#formData').on('submit', function(e) {
+            e.preventDefault();
+
+            let submitBtn = $('#submitBtn');
+            let spinner = submitBtn.find('.spinner-border');
+            let btnText = submitBtn.find('.button-text');
+
+            spinner.removeClass('d-none');
+            btnText.text('Saving...');
+            submitBtn.prop('disabled', true);
+
+            let id = $('#primary_id').val();
+            let url = id ? '{{ route('products.update', ['product' => ':id']) }}'.replace(':id', id) :
+                '{{ route('products.store') }}';
+            let method = id ? 'PUT' : 'POST';
+
+            $('.is-invalid').removeClass('is-invalid');
+            $('.invalid-feedback').remove();
+
+            let formData = new FormData(this);
+            formData.append('_method', method);
+
+            $.ajax({
+                url: url,
+                method: 'POST',
+                data: formData,
+                contentType: false,
+                processData: false,
+                success: function(response) {
+                    $('#modalForm').modal('hide');
+                    audio.play();
+                    let msg = response.message;
+                    toastr.success(msg, "SUCCESS", {
+                        progressBar: true,
+                        timeOut: 3500,
+                        positionClass: "toast-bottom-right",
+                    });
+                    $('.data-table').DataTable().ajax.reload();
+                },
+                error: function(response) {
+                    if (response.status === 422) {
+                        audio.play();
+                        toastr.error("There are errors in your input!", "ERROR", {
+                            progressBar: true,
+                            timeOut: 3500,
+                            positionClass: "toast-bottom-right",
+                        });
+
+                        let errors = response.responseJSON.errors;
+                        $.each(errors, function(key, val) {
+                            let input = $('#' + key);
+                            input.addClass('is-invalid');
+                            input.parent().find('.invalid-feedback').remove();
+                            input.parent().append(
+                                '<span className="invalid-feedback" role="alert"><strong>' +
+                                val[0] + '</strong></span>'
+                            );
+                        });
+
+                        spinner.addClass('d-none');
+                        btnText.text('Save');
+                        submitBtn.prop('disabled', false);
+                    }
+
+                    audio.play();
+                    let msg = response.message;
+                    toastr.error(msg, "ERROR", {
+                        progressBar: true,
+                        timeOut: 3500,
+                        positionClass: "toast-bottom-right",
+                    });
+                }
+            });
+        });
+
+        $(document).on('click', '.delete-button', function(e) {
+            e.preventDefault();
+
+            const form = $(this).closest('form');
+
+            Swal.fire({
+                title: 'Are you sure?',
+                text: 'This product will be permanently deleted!',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: '<span className="swal-btn-text">Yes, Delete</span>',
+                cancelButtonText: 'Cancel',
+                showLoaderOnConfirm: false,
+                buttonsStyling: false,
+                customClass: {
+                    confirmButton: 'btn btn-danger mx-2',
+                    cancelButton: 'btn btn-secondary'
+                },
+                preConfirm: () => {
+                    return new Promise((resolve) => {
+                        const confirmBtn = Swal.getConfirmButton();
+                        const btnText = confirmBtn.querySelector('.swal-btn-text');
+
+                        btnText.innerHTML =
+                            `<span className="spinner-border spinner-border-sm mx-2" role="status" aria-hidden="true"></span> Deleting...`;
+                        confirmBtn.disabled = true;
+
+                        $.ajax({
+                            url: form.attr('action'),
+                            method: 'POST',
+                            data: form.serialize(),
+                            success: function(response) {
+                                audio.play();
+                                let msg = response.message
+                                toastr.success(msg, "SUCCESS", {
+                                    progressBar: true,
+                                    timeOut: 3500,
+                                    positionClass: "toast-bottom-right"
+                                });
+
+                                $('.data-table').DataTable().ajax.reload(null,
+                                    false);
+                                Swal.close();
+                            },
+                            error: function() {
+                                audio.play();
+                                let msg = response.message
+                                toastr.error(msg, "ERROR", {
+                                    progressBar: true,
+                                    timeOut: 3500,
+                                    positionClass: "toast-bottom-right"
+                                });
+
+                                btnText.innerHTML = `Yes, Delete`;
+                                confirmBtn.disabled = false;
+                            }
+                        });
+                    });
+                }
+            });
+        });
+    </script>
+@endpush
+```
+
+### Penjelasan Fitur Khusus di View
+
+#### 1. **Image Preview**
+Fitur ini memungkinkan pengguna untuk melihat pratinjau gambar sebelum diunggah dan menghapusnya jika diperlukan.
+
+- **Struktur HTML**:
+  - Gunakan `div.image-preview-container` sebagai wadah dengan border dashed untuk estetika.
+  - Tambahkan `div.no-image-placeholder` untuk menampilkan ikon saat tidak ada gambar.
+  - Gunakan `img#image-preview` untuk menampilkan pratinjau gambar.
+  - Tambahkan tombol hapus (`button#remove-image-btn`) yang muncul saat gambar dipilih.
+  - Input file (`input#image_path`) disembunyikan, dan input tersembunyi (`input#remove_image`) digunakan untuk menandai apakah gambar dihapus.
+
+- **JavaScript**:
+  ```javascript
+  $(document).on('click', '.image-preview-container', function() {
+      $('#image_path').click();
+  });
+
+  $('#image_path').change(function(e) {
+      var input = this;
+      var preview = $('#image-preview');
+      var placeholder = $('.no-image-placeholder');
+      var removeBtn = $('#remove-image-btn');
+
+      if (input.files && input.files[0]) {
+          var reader = new FileReader();
+
+          reader.onload = function(e) {
+              preview.attr('src', e.target.result);
+              preview.show();
+              placeholder.hide();
+              removeBtn.show();
+              $('#remove_image').val(0);
+          }
+
+          reader.readAsDataURL(input.files[0]);
+      }
+  });
+
+  $('#remove-image-btn').click(function(e) {
+      e.stopPropagation();
+      $('#image-preview').attr('src', '').hide();
+      $('.no-image-placeholder').show();
+      $('#image_path').val('');
+      $('#remove_image').val(1);
+      $(this).hide();
+  });
+  ```
+
+- **Penjelasan**:
+  - Klik pada `image-preview-container` memicu input file.
+  - Saat file dipilih, `FileReader` digunakan untuk menampilkan pratinjau.
+  - Tombol hapus mengosongkan input file dan menandai `remove_image` sebagai `1`.
+
+#### 2. **Select2**
+Select2 digunakan untuk dropdown agar lebih interaktif dan mendukung pencarian.
+
+- **Inisialisasi**:
+  ```javascript
+  $(document).ready(function() {
+      $('.select-status').select2({
+          theme: "bootstrap4",
+          minimumResultsForSearch: Infinity,
+          placeholder: "Pilih Status",
+      });
+  });
+  ```
+
+- **Aturan**:
+  - Gunakan kelas `select-status` untuk elemen `<select>`.
+  - Atur `theme: "bootstrap4"` untuk konsistensi dengan tema UI.
+  - Gunakan `minimumResultsForSearch: Infinity` jika dropdown tidak memerlukan pencarian (misalnya, opsi sedikit).
+  - Tambahkan `placeholder` untuk petunjuk pengguna.
+  - Pastikan `trigger('change')` dipanggil saat mengisi nilai secara dinamis (misalnya, saat edit).
+
+#### 3. **DataTables**
+DataTables digunakan untuk menampilkan data secara server-side dengan fitur pencarian dan paginasi.
+
+- **Inisialisasi**:
+  ```javascript
+  $(function() {
+      var table = $('.data-table').DataTable({
+          processing: true,
+          serverSide: true,
+          responsive: true,
+          ordering: false,
+          ajax: "{{ route('products.index') }}",
+          columns: [
+              { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false, className: 'text-center' },
+              { data: 'image', name: 'image', orderable: false, searchable: false, className: 'text-center' },
+              { data: 'name', name: 'name', orderable: false, searchable: true },
+              { data: 'description', name: 'description', orderable: false, searchable: false },
+              { data: 'price', name: 'price', orderable: false, searchable: false },
+              { data: 'stock', name: 'stock', orderable: false, searchable: false },
+              { data: 'is_active', name: 'is_active', orderable: false, searchable: false, className: 'text-center' },
+              { data: 'action', name: 'action', orderable: false, searchable: false, className: 'text-center' }
+          ],
+          columnDefs: [{
+              targets: 0,
+              render: function(data, type, row, meta) {
+                  return meta.row + meta.settings._iDisplayStart + 1;
+              }
+          }]
+      });
+  });
+  ```
+
+- **Penjelasan**:
+  - Gunakan `serverSide: true` untuk memproses data di server.
+  - Atur `ordering: false` jika pengurutan tidak diperlukan.
+  - Kolom `DT_RowIndex` digunakan untuk nomor urut dinamis.
+  - Kolom `action` berisi tombol edit dan hapus dengan HTML khusus.
+
+#### 4. **Notifikasi dan Konfirmasi**
+- **Toastr** digunakan untuk notifikasi sukses atau error:
+  ```javascript
+  toastr.success(msg, "SUCCESS", {
+      progressBar: true,
+      timeOut: 3500,
+      positionClass: "toast-bottom-right",
+  });
+  ```
+- ** SweetAlert2** digunakan untuk konfirmasi hapus:
+  ```javascript
+  Swal.fire({
+      title: 'Are you sure?',
+      text: 'This product will be permanently deleted!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: '<span className="swal-btn-text">Yes, Delete</span>',
+      cancelButtonText: 'Cancel',
+      showLoaderOnConfirm: false,
+      buttonsStyling: false,
+      customClass: {
+          confirmButton: 'btn btn-danger mx-2',
+          cancelButton: 'btn btn-secondary'
+      },
+      preConfirm: () => {
+          // Logika AJAX untuk hapus
+      }
+  });
+  ```
+
+## 4. Panduan Implementasi Tambahan
+
+### Struktur File
+- Simpan file gambar di `public/assets/[nama_entitas]/` (misalnya, `public/assets/product/`).
+- Simpan file audio untuk notifikasi di `public/audio/` (misalnya, `notification.ogg`).
+
+### Dependensi
+- **Bootstrap 4**: Untuk modal dan styling.
+- **jQuery**: Untuk AJAX dan manipulasi DOM.
+- **DataTables**: Untuk tabel server-side.
+- **Select2**: Untuk dropdown interaktif.
+- **Toastr**: Untuk notifikasi.
+- **SweetAlert2**: Untuk konfirmasi hapus.
+- **Font Awesome**: Untuk ikon.
+
+### Konfigurasi Route
+Pastikan route didefinisikan di `routes/web.php`:
+```php
+Route::resource('products', ProductController::class);
+```
+
+### Validasi
+- Gunakan validasi sisi server di controller.
+- Tampilkan error validasi di view menggunakan kelas `is-invalid` dan `invalid-feedback`.
+
+## 5. Catatan untuk Tim
+- Pastikan semua anggota tim mengikuti struktur ini untuk menjaga konsistensi.
+- Tambahkan komentar pada kode untuk menjelaskan fungsi kompleks.
+- Lakukan pengujian untuk setiap operasi CRUD.
+- Gunakan transaksi database untuk operasi yang mengubah data.
+- Pastikan semua dependensi (CSS/JS) dimuat di layout utama.
+
+Dokumentasi ini harus menjadi acuan utama untuk pengembangan fitur CRUD di aplikasi Laravel tim. Jika ada pertanyaan atau kebutuhan penyesuaian, silakan diskusikan dengan tim untuk memastikan keselarasan.
