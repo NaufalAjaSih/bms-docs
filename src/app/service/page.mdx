@@ -1,0 +1,267 @@
+# Service — Standar Penulisan & Arsitektur
+
+## 1. Pengantar Service
+
+`Service` adalah lapisan yang berisi **logika bisnis** (business logic) dan aturan pemrosesan data.
+Service menjadi inti yang menjalankan proses-proses penting dalam aplikasi.
+
+Semua Controller wajib memanggil Service untuk menjalankan logika bisnis, sehingga Controller tetap bersih dan mudah dipelihara.
+
+#### Kenapa kita menggunakan Service Layer?
+
+* Memisahkan business logic dari controller
+* Mencegah Controller menjadi besar dan sulit dibaca
+* Memudahkan testing (service bisa di-*unit test*)
+* Logika yang sama dapat digunakan ulang di beberapa controller
+* Struktur aplikasi lebih rapi dan terorganisasi
+* Mendukung scaling aplikasi dalam jangka panjang
+
+## 2. Prinsip Utama Penulisan Service (Wajib Diikuti)
+
+1. **Service hanya menangani logika bisnis**
+   Tidak menampilkan view, tidak mem-format response JSON.
+
+2. **Semua transaksi database (`DB::transaction`) diletakkan di Service**
+   Bukan di Controller ataupun Helper.
+
+3. **Service dapat memanggil Trait untuk fungsi reusable**
+   Contoh: `UploadTrait`, `FileTrait`, dll.
+
+4. **Return berupa data mentah**
+   Controller yang bertanggung jawab membungkusnya dengan ResponseHelper.
+
+5. **Service tidak boleh memanggil request langsung**
+   Data harus sudah diproses/di-validasi oleh FormRequest di Controller.
+
+6. **Query database wajib dilakukan di Service (atau Repository jika ada)**
+   Tidak boleh di Controller.
+
+## 3. Struktur Dasar Service
+
+```php
+namespace App\Services;
+
+class ProductService
+{
+    public function __construct()
+    {
+        //
+    }
+}
+```
+
+Service dapat di-*inject* ke Controller melalui constructor.
+
+## 4. Tanggung Jawab Service
+
+#### Semua logika bisnis dilakukan di sini
+
+Contoh:
+
+* Generate SKU
+* Hitung total harga
+* Kirim notifikasi
+* Proses data sebelum disimpan
+* Validasi lanjutan (di luar FormRequest)
+* Upload & delete file
+
+#### Melakukan transaksi database
+
+Contoh:
+
+```php
+DB::beginTransaction();
+```
+
+#### Query database terpusat
+
+Contoh:
+
+```php
+Product::orderBy('id', 'desc')->get();
+```
+
+#### Menyiapkan data untuk DataTable
+
+Contoh:
+
+```php
+return DataTables::of($query)->make(true);
+```
+
+## 5. Pedoman Penulisan Method dalam Service
+
+Setiap Service harus mengikuti pola penamaan berikut:
+
+| Jenis Method     | Format Nama                | Contoh                         |
+| ---------------- | -------------------------- | ------------------------------ |
+| Mengambil 1 data | `getXById`                 | `getProductById($id)`          |
+| Mengambil list   | `getAllX` atau `dataTable` | `getAllProducts()`             |
+| Create data      | `createX`                  | `createProduct($request)`      |
+| Update data      | `updateX`                  | `updateProduct($request, $id)` |
+| Delete data      | `deleteX`                  | `deleteProduct($id)`           |
+
+⚠ Penamaan method harus **konsisten dan deskriptif**.
+
+## 6. Contoh Implementasi Service
+
+Berikut contoh standar implementasi Service yang rapi dan sesuai standar tim:
+
+#### 6.1. Mengambil Data Berdasarkan ID
+
+```php
+public function getProductById($id)
+{
+    return Product::findOrFail($id);
+}
+```
+
+* Menggunakan `findOrFail` untuk otomatis melempar exception.
+
+---
+
+#### 6.2. DataTable Method
+
+```php
+public function dataTable()
+{
+    $data = Product::orderBy('id', 'desc');
+
+    return DataTables::of($data)
+        ->addIndexColumn()
+        ->editColumn('image', function ($row) {
+            return $row->image
+                ? '<img src="' . asset('assets/products/' . $row->image) . '" width="50" height="50">'
+                : 'No Image';
+        })
+        ->addColumn('action', function ($row) {
+            $showUrl = route('products.show', $row->id);
+            $deleteUrl = route('products.destroy', $row->id);
+
+            $btn  = '<div class="d-flex justify-content-center gap-2">';
+            $btn .= '<button class="btn btn-primary btn-sm edit-button" data-id="' . e($row->id) . '" data-url="' . e($showUrl) . '">Edit</button>';
+            $btn .= '<form action="' . e($deleteUrl) . '" method="POST" style="display:inline;">'
+                    . csrf_field() . method_field('DELETE')
+                    . '<button type="submit" class="delete-button btn btn-danger btn-sm">Hapus</button></form>';
+            $btn .= '</div>';
+
+            return $btn;
+        })
+        ->rawColumns(['image', 'action'])
+        ->make(true);
+}
+```
+
+#### 6.3. Create Method (Dengan Upload File & Transaksi)
+
+```php
+public function createProduct(StoreProductRequest $data, $image = null)
+{
+    DB::beginTransaction();
+
+    try {
+        $filename = '';
+
+        if ($image) {
+            $filename = $this->uploadFile($image, 'assets/products/');
+        }
+
+        $product = Product::create([
+            'sku'         => 'SKU-' . time() . '-' . Str::random(10),
+            'name'        => $data->name,
+            'stock'       => $data->stock,
+            'price'       => $data->price,
+            'image'       => $filename,
+            'description' => $data->description,
+        ]);
+
+        DB::commit();
+
+        return $product;
+    } catch (Exception $e) {
+        DB::rollBack();
+        throw $e;
+    }
+}
+```
+
+#### 6.4. Update Method
+
+```php
+public function updateProduct(UpdateProductRequest $data, $id, $image = null)
+{
+    DB::beginTransaction();
+
+    try {
+        $product = $this->getProductById($id);
+        $filename = $product->image;
+
+        if ($image) {
+            $filename = $this->uploadFile($image, 'assets/products/', $product->image);
+        }
+
+        $product->update([
+            'name'        => $data->name,
+            'stock'       => $data->stock,
+            'price'       => $data->price,
+            'image'       => $filename,
+            'description' => $data->description,
+        ]);
+
+        DB::commit();
+
+        return $product;
+    } catch (Exception $e) {
+        DB::rollBack();
+        throw $e;
+    }
+}
+```
+
+#### 6.5. Delete Method
+
+```php
+public function deleteProduct($id)
+{
+    DB::beginTransaction();
+
+    try {
+        $product = $this->getProductById($id);
+
+        if ($product->image) {
+            $this->deleteFile('assets/products/' . $product->image);
+        }
+
+        $product->delete();
+
+        DB::commit();
+
+        return true;
+    } catch (Exception $e) {
+        DB::rollBack();
+        throw $e;
+    }
+}
+```
+
+## 7. Aturan Wajib Service
+
+| Aturan                                          | Penjelasan                              |
+| ----------------------------------------------- | --------------------------------------- |
+| ✔ Semua logika bisnis ditempatkan di Service    | Controller hanya perantara              |
+| ✔ Semua transaksi DB di Service                 | Pengelolaan data lebih aman             |
+| ✔ Gunakan Trait jika ada fungsi berulang        | Contoh upload file                      |
+| ✔ Service boleh memanggil model secara langsung | Karena dia mengatur business logic      |
+| ❌ Tidak mengembalikan JSON                      | Itu tugas Controller                    |
+| ❌ Tidak menampilkan view                        | Hanya mengolah data                     |
+| ❌ Tidak menerima request mentah                 | FormRequest memvalidasi terlebih dahulu |
+
+## 8. Ringkasan
+
+Service adalah pusat pengolahan data dan logika aplikasi.
+Arsitektur tim mewajibkan setiap developer memindahkan logika berat dari Controller ke Service agar:
+
+* Controller tetap bersih
+* Logika terstruktur
+* Code reusable
+* Aplikasi mudah dikembangkan

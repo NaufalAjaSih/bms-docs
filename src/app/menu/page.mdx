@@ -1,0 +1,150 @@
+# Cara Kerja Dynamic Menu
+
+Halaman ini menjelaskan alur kerja fitur **Dynamic Menu** pada boilerplate aplikasi.  
+Fitur ini memungkinkan tim untuk mengelola menu, hak akses, dan role secara fleksibel tanpa perlu mengubah kode secara manual.
+
+Dynamic Menu terdiri dari tiga bagian utama:
+1. **Manajemen Menu** – untuk membuat struktur menu aplikasi  
+2. **Manajemen Hak Akses** – untuk membuat permission berdasarkan module  
+3. **Manajemen Role** – untuk memberikan hak akses kepada pengguna
+
+## 1. Manajemen Menu
+
+Bagian ini digunakan untuk membuat menu yang akan tampil pada sidebar atau navigasi aplikasi.
+Saat membuat menu baru, isilah field berikut:
+
+**- Nama \***
+Nama menu yang akan ditampilkan pada sidebar.  
+Contoh: `Data Siswa`, `Produk`, `Tagihan`.
+
+**- Icon \***
+Nama ikon yang digunakan pada menu.  
+Biasanya mengikuti ikon dari library seperti *FontAwesome*, *Heroicons*, atau *Lucide*.  
+Contoh: `user`, `file-text`, `shopping-bag`.
+
+**- Route \***
+Nama route yang terhubung dengan menu.  
+biasanya berupa nama route seperti:
+* `siswa.index`
+* `tagihan.show`
+* `produk.create`
+
+**- URL**
+Secara umum, URL diisi berdasarkan **module** atau **prefix** yang digunakan di nama route.
+Namun **tidak wajib selalu sama**, karena URL bisa dikustomisasi sesuai kebutuhan.
+
+Contoh umum (mengikuti prefix module):
+
+* `siswa.index` → `/siswa`
+* `tagihan.show` → `/tagihan`
+* `produk.create` → `/produk`
+
+Contoh kasus URL berbeda dari prefix:
+
+Kadang URL dibuat lebih pendek atau dibuat berbeda untuk alasan estetika atau SEO:
+
+* `testing.index` → `/test`
+* `laporan_keuangan.index` → `/finance`
+* `pengguna.aktif` → `/users/active`
+
+Ini sepenuhnya **valid**, selama *Route* dan *URL* masih berhubungan secara logis.
+
+**- Parent Menu**
+Digunakan untuk membuat **menu bertingkat (submenu)**.  
+Jika menu ini merupakan menu utama, biarkan kosong.  
+Jika menu ini bagian dari menu lain, pilih parent-nya.
+
+**- Urutan \***
+Menentukan posisi menu saat ditampilkan di sidebar.  
+Semakin kecil angkanya, semakin atas posisinya.
+
+**- Status \***
+Untuk mengaktifkan atau menonaktifkan menu.  
+Jika status nonaktif, menu tidak ditampilkan di sidebar.
+
+## 2. Manajemen Hak Akses (Permissions)
+
+Setelah menu dibuat, langkah selanjutnya adalah membuat hak akses untuk menentukan **aksi apa saja yang boleh dilakukan** pada module terkait.
+Field yang harus diisi:
+
+**- Menu \***
+Pilih menu yang dihubungkan dengan hak akses ini.
+
+**- Nama Module \***
+Nama module yang akan digunakan sebagai **prefix permission**.  
+Gunakan nama yang konsisten dan tanpa spasi.
+
+Contoh module:
+- `tagihan`
+- `user`
+- `product`
+- `transaksi`
+
+Prefix ini digunakan secara otomatis untuk membentuk permission seperti:
+- `tagihan.show`
+- `tagihan.create`
+- `tagihan.update`
+- `tagihan.delete`
+
+**- Akses CRUD \***
+Pilih aksi utama yang ingin diberikan untuk module tersebut:
+- **Show / View**
+- **Create**
+- **Update**
+- **Delete**
+
+Boleh memilih satu atau lebih sesuai kebutuhan.
+
+**- Akses Tambahan**
+Akses ini opsional dan bisa dipilih lebih dari satu. Biasanya dipakai untuk fitur khusus.
+
+Pilihan:
+- **Export**
+- **Import**
+- **Approve**
+- **Report**
+
+Setiap akses tambahan akan menghasilkan permission seperti:
+- `tagihan.export`
+- `tagihan.import`
+- `tagihan.approve`
+- `tagihan.report`
+
+## 3. Manajemen Role
+
+Role digunakan untuk mengelompokkan hak akses dan diberikan ke pengguna tertentu.
+
+Field yang harus diisi:
+
+**- Nama \***
+Nama role yang akan dibuat.  
+Contoh:
+- `Admin`
+- `User`
+- `Finance`
+- `Operator`
+
+**- Hak Akses**
+Di bagian ini, pilih permission yang boleh digunakan oleh role tersebut.  
+Role dapat memiliki **lebih dari satu hak akses** sekaligus.
+
+Contoh:
+- Role `User` → hanya dapat `user.show`, `user.update`
+- Role `Admin` → dapat semua permission
+
+## Alur Kerja Dynamic Menu
+
+1. **Buat Menu** → menentukan struktur sidebar  
+2. **Buat Hak Akses** → menentukan permission untuk module tersebut  
+3. **Buat Role** → mengelompokkan hak akses  
+4. **Berikan Role ke User** → user dapat akses menu sesuai role  
+
+Dengan alur ini, aplikasi menjadi fleksibel dan mudah dikelola tanpa perlu mengubah kode secara manual.
+
+## Catatan Penting
+
+- Nama module harus konsisten karena digunakan sebagai dasar semua permission.  
+- Jika menu tidak muncul di sidebar, pastikan:
+  1. Menu aktif  
+  2. Role user memiliki permission dengan prefix yang sama  
+- Submenu hanya muncul jika parent menu aktif dan memiliki hak akses.

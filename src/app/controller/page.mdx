@@ -1,999 +1,259 @@
-# Controller Standards
+# Controller — Standar Penulisan & Arsitektur
 
-## Daftar Isi
+## 1. Pengantar Controller
 
--   [Struktur Dasar Controller](#struktur-dasar-controller)
--   [Modal Controller](#modal-controller)
--   [Page Controller](#page-controller)
--   [Method Index (DataTables)](#method-index-datatables)
--   [Method Show](#method-show)
--   [Method Store](#method-store)
--   [Method Update](#method-update)
--   [Method Destroy](#method-destroy)
--   [Best Practices](#best-practices)
+Controller bertugas menerima request, meneruskannya ke lapisan bisnis (Service), lalu mengembalikan response ke user.
+Dalam standar tim ini, Controller **tidak boleh** berisi logika bisnis, query database, atau proses berat lainnya.
 
-## Struktur Dasar Controller
+Pemindahan logika ke lapisan lain (Service, Trait, Helper) membuat controller tetap rapi, ringkas, dan mudah dipelihara.
 
-### Template Dasar
+#### Tujuan arsitektur Controller yang bersih:
+
+* Memisahkan tanggung jawab (Separation of Concerns)
+* Mempermudah debugging dan pengembangan fitur
+* Menghindari *Fat Controller*
+* Mendukung maintainability dan scalability aplikasi
+* Mempermudah testing karena logika ada di Service
+
+## 2. Prinsip Utama Penulisan Controller
+
+1. **Controller hanya memanggil Service**
+   Tidak ada logika bisnis di Controller.
+
+2. **Validasi harus memakai FormRequest**
+   Tidak diperbolehkan melakukan validasi manual di Controller.
+
+3. **Semua response JSON wajib melalui `ResponseHelper`**
+   Untuk menjaga konsistensi format response di seluruh aplikasi.
+
+4. **Tidak melakukan upload file di Controller**
+   Upload harus dilakukan di Service melalui Trait khusus.
+
+5. **Tidak ada transaksi database (`DB::transaction`) di Controller**
+   Seluruh transaksi ditangani di Service.
+
+## 3. Struktur Dasar Controller
 
 ```php
-<?php
-
-namespace App\Http\Controllers;
-
-use Carbon\Carbon;
-use App\Models\{ModelName};
-use Illuminate\Support\Str;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Yajra\DataTables\Facades\DataTables;
-
-class {Entity}Controller extends Controller
+class ProductController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index(Request $request)
-    {
-        // Implementation
-    }
+    protected $productService;
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function __construct(ProductService $productService)
     {
-        // Implementation
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        // Implementation
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show($id)
-    {
-        // Implementation
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, $id)
-    {
-        // Implementation
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy($id)
-    {
-        // Implementation
+        $this->productService = $productService;
     }
 }
 ```
 
-### Required Imports
+**Penjelasan:**
 
-```php
-use Carbon\Carbon;                    // Untuk format tanggal
-use App\Models\{ModelName};           // Model yang digunakan
-use Illuminate\Support\Str;           // Untuk generate random string
-use Illuminate\Http\Request;          // Request handling
-use Illuminate\Support\Facades\DB;    // Database transactions
-use Yajra\DataTables\Facades\DataTables; // DataTables integration
-```
+* Dependency Injection digunakan untuk memasukkan Service.
+* Controller hanya bertugas memanggil method dari Service.
 
-## Modal Controller
+## 4. Penjelasan Fungsi-Fungsi Controller
 
-### Template Modal Controller
+Setiap Controller minimal terdiri dari method umum berikut:
+`index`, `show`, `store`, `update`, dan `destroy`.
 
-```php
-<?php
-
-namespace App\Http\Controllers;
-
-use Carbon\Carbon;
-use App\Models\{ModelName};
-use Illuminate\Support\Str;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Yajra\DataTables\Facades\DataTables;
-
-class {Entity}ModalController extends Controller
-{
-    /**
-     * Display a listing of the resource.
-     */
-    public function index(Request $request)
-    {
-        Carbon::setLocale('id');
-
-        if ($request->ajax()) {
-            $data = {ModelName}::orderBy('id', 'desc');
-
-            return DataTables::of($data)
-                ->addIndexColumn()
-                ->editColumn('field_name', function ($row) {
-                    // Custom formatting logic
-                    return $formattedValue;
-                })
-                ->addColumn('action', function ($row) {
-                    $showUrl = route('{entity}-modal.show', $row->id);
-                    $deleteUrl = route('{entity}-modal.destroy', $row->id);
-
-                    $btn = '<div class="d-flex justify-content-center">';
-                    $btn .= '<button class="btn btn-primary btn-sm edit-button" data-id="' . e($row->id) . '" data-url="' . e($showUrl) . '">Edit</button>';
-                    $btn .= '<form action="' . e($deleteUrl) . '" method="POST" style="display:inline;">' . csrf_field() . method_field('DELETE') . '<button type="submit" class="delete-button btn btn-danger btn-sm ml-2">Hapus</button></form>';
-                    $btn .= '</div>';
-                    return $btn;
-                })
-                ->rawColumns(['action'])
-                ->make(true);
-        }
-
-        return view('admin.{entity}.modal.index');
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show($id)
-    {
-        $data = {ModelName}::findOrFail($id);
-
-        return response()->json([
-            'status' => 'success',
-            'data' => $data,
-        ]);
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        // Implementation
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, $id)
-    {
-        // Implementation
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy($id)
-    {
-        // Implementation
-    }
-}
-```
-
-### Contoh Modal Controller
-
-```php
-<?php
-
-namespace App\Http\Controllers;
-
-use Carbon\Carbon;
-use App\Models\Biodata;
-use Illuminate\Support\Str;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Yajra\DataTables\Facades\DataTables;
-
-class BiodataModalController extends Controller
-{
-    public function index(Request $request)
-    {
-        Carbon::setLocale('id');
-
-        if ($request->ajax()) {
-            $data = Biodata::orderBy('id', 'desc');
-
-            return DataTables::of($data)
-                ->addIndexColumn()
-                ->editColumn('jenis_kelamin', function ($row) {
-                    return $row->jenis_kelamin == 1 ? 'Laki - laki' : 'Perempuan';
-                })
-                ->editColumn('tgl_lahir', function ($row) {
-                    return Carbon::parse($row->tgl_lahir)->translatedFormat('d F Y');
-                })
-                ->addColumn('action', function ($row) {
-                    $showUrl = route('biodata-modal.show', $row->id);
-                    $deleteUrl = route('biodata-modal.destroy', $row->id);
-
-                    $btn = '<div class="d-flex justify-content-center">';
-                    $btn .= '<button class="btn btn-primary btn-sm edit-button" data-id="' . e($row->id) . '" data-url="' . e($showUrl) . '">Edit</button>';
-                    $btn .= '<form action="' . e($deleteUrl) . '" method="POST" style="display:inline;">' . csrf_field() . method_field('DELETE') . '<button type="submit" class="delete-button btn btn-danger btn-sm ml-2">Hapus</button></form>';
-                    $btn .= '</div>';
-                    return $btn;
-                })
-                ->rawColumns(['action'])
-                ->make(true);
-        }
-
-        return view('admin.biodata.modal.index');
-    }
-
-    public function show($id)
-    {
-        $data = Biodata::findOrFail($id);
-
-        return response()->json([
-            'status' => 'success',
-            'data' => $data,
-        ]);
-    }
-
-    public function store(Request $request)
-    {
-        $rules = [
-            'nama' => 'required|unique:biodata,nama',
-            'jenis_kelamin' => 'required',
-            'tgl_lahir' => 'required|date',
-            'foto' => 'nullable|file|mimes:jpeg,png,jpg|max:2048',
-        ];
-
-        $messages = [
-            'nama.required' => 'Nama wajib diisi.',
-            'nama.unique' => 'Nama sudah digunakan.',
-            'jenis_kelamin.required' => 'Jenis kelamin wajib diisi.',
-            'tgl_lahir.required' => 'Tanggal lahir wajib diisi.',
-            'tgl_lahir.date' => 'Tanggal lahir harus berupa tanggal yang valid.',
-            'foto.file' => 'Foto harus berupa file.',
-            'foto.mimes' => 'Format foto harus jpeg, png, atau jpg.',
-            'foto.max' => 'Ukuran foto maksimal 2MB.',
-        ];
-
-        $request->validate($rules, $messages);
-
-        DB::beginTransaction();
-        try {
-            if ($request->hasFile('foto')) {
-                $foto = $request->file('foto');
-                $ext = $foto->getClientOriginalExtension();
-                $filename = Str::random(25) . '.' . $ext;
-                $foto->move(public_path('assets/biodata/'), $filename);
-            }
-
-            $db = [
-                'nama' => $request->nama,
-                'jenis_kelamin' => $request->jenis_kelamin,
-                'tgl_lahir' => $request->tgl_lahir,
-                'foto' => $filename ?? ''
-            ];
-
-            Biodata::create($db);
-
-            DB::commit();
-
-            return response()->json(['status' => 'success']);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'status' => 'error',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function update(Request $request, $id)
-    {
-        $data = Biodata::findOrFail($id);
-
-        $rules = [
-            'nama' => 'required|unique:biodata,nama,' . $data->id . ',id',
-            'jenis_kelamin' => 'required',
-            'tgl_lahir' => 'required|date',
-            'foto' => 'nullable|file|mimes:jpeg,png,jpg|max:2048',
-        ];
-
-        $messages = [
-            'nama.required' => 'Nama wajib diisi.',
-            'nama.unique' => 'Nama sudah digunakan.',
-            'jenis_kelamin.required' => 'Jenis kelamin wajib diisi.',
-            'tgl_lahir.required' => 'Tanggal lahir wajib diisi.',
-            'tgl_lahir.date' => 'Tanggal lahir harus berupa tanggal yang valid.',
-            'foto.file' => 'Foto harus berupa file.',
-            'foto.mimes' => 'Format foto harus jpeg, png, atau jpg.',
-            'foto.max' => 'Ukuran foto maksimal 2MB.',
-        ];
-
-        $request->validate($rules, $messages);
-
-        DB::beginTransaction();
-        try {
-            if ($request->hasFile('foto')) {
-                if (!empty($data->foto) && file_exists(public_path('assets/biodata/' . $data->foto))) {
-                    unlink(public_path('assets/biodata/' . $data->foto));
-                }
-
-                $foto = $request->file('foto');
-                $ext = $foto->getClientOriginalExtension();
-                $filename = Str::random(25) . '.' . $ext;
-                $foto->move(public_path('assets/biodata/'), $filename);
-            }
-
-            $db = [
-                'nama' => $request->nama,
-                'jenis_kelamin' => $request->jenis_kelamin,
-                'tgl_lahir' => $request->tgl_lahir,
-                'foto' => $filename ?? $data->foto
-            ];
-
-            $data->update($db);
-
-            DB::commit();
-
-            return response()->json(['status' => 'success']);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'status' => 'error',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function destroy($id)
-    {
-        DB::beginTransaction();
-        try {
-            $data = Biodata::findOrFail($id);
-
-            if (!empty($data->foto) && file_exists(public_path('assets/biodata/' . $data->foto))) {
-                unlink(public_path('assets/biodata/' . $data->foto));
-            }
-
-            $data->delete();
-
-            DB::commit();
-
-            return response()->json(['status' => 'success']);
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'status' => 'error',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-}
-```
-
-## Page Controller
-
-### Template Page Controller
-
-```php
-<?php
-
-namespace App\Http\Controllers;
-
-use Carbon\Carbon;
-use App\Models\{ModelName};
-use Illuminate\Support\Str;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Yajra\DataTables\Facades\DataTables;
-
-class {Entity}PageController extends Controller
-{
-    /**
-     * Display a listing of the resource.
-     */
-    public function index(Request $request)
-    {
-        Carbon::setLocale('id');
-
-        if ($request->ajax()) {
-            $data = {ModelName}::orderBy('id', 'desc');
-
-            return DataTables::of($data)
-                ->addIndexColumn()
-                ->editColumn('field_name', function ($row) {
-                    // Custom formatting logic
-                    return $formattedValue;
-                })
-                ->addColumn('action', function ($row) {
-                    $editUrl = route('{entity}-page.show', $row->id);
-                    $deleteUrl = route('{entity}-page.destroy', $row->id);
-
-                    $btn = '<div class="d-flex justify-content-center">';
-                    $btn .= '<a class="btn btn-primary btn-sm" href="' . e($editUrl) . '">Edit</a>';
-                    $btn .= '<form action="' . e($deleteUrl) . '" method="POST" style="display:inline;">' . csrf_field() . method_field('DELETE') . '<button type="submit" class="delete-button btn btn-danger btn-sm ml-2">Hapus</button></form>';
-                    $btn .= '</div>';
-                    return $btn;
-                })
-                ->rawColumns(['action'])
-                ->make(true);
-        }
-
-        return view('admin.{entity}.page.index');
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        return view('admin.{entity}.page.create');
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show($id)
-    {
-        $data = {ModelName}::findOrFail($id);
-
-        return view('admin.{entity}.page.show', compact('data'));
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        // Implementation
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, $id)
-    {
-        // Implementation
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy($id)
-    {
-        // Implementation
-    }
-}
-```
-
-### Contoh Page Controller
-
-```php
-<?php
-
-namespace App\Http\Controllers;
-
-use Carbon\Carbon;
-use App\Models\Biodata;
-use Illuminate\Support\Str;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Yajra\DataTables\Facades\DataTables;
-
-class BiodataPageController extends Controller
-{
-    public function index(Request $request)
-    {
-        Carbon::setLocale('id');
-
-        if ($request->ajax()) {
-            $data = Biodata::orderBy('id', 'desc');
-
-            return DataTables::of($data)
-                ->addIndexColumn()
-                ->editColumn('jenis_kelamin', function ($row) {
-                    return $row->jenis_kelamin == 1 ? 'Laki - laki' : 'Perempuan';
-                })
-                ->editColumn('tgl_lahir', function ($row) {
-                    return Carbon::parse($row->tgl_lahir)->translatedFormat('d F Y');
-                })
-                ->addColumn('action', function ($row) {
-                    $editUrl = route('biodata-page.show', $row->id);
-                    $deleteUrl = route('biodata-page.destroy', $row->id);
-
-                    $btn = '<div class="d-flex justify-content-center">';
-                    $btn .= '<a class="btn btn-primary btn-sm" href="' . e($editUrl) . '">Edit</a>';
-                    $btn .= '<form action="' . e($deleteUrl) . '" method="POST" style="display:inline;">' . csrf_field() . method_field('DELETE') . '<button type="submit" class="delete-button btn btn-danger btn-sm ml-2">Hapus</button></form>';
-                    $btn .= '</div>';
-                    return $btn;
-                })
-                ->rawColumns(['action'])
-                ->make(true);
-        }
-
-        return view('admin.biodata.page.index');
-    }
-
-    public function create()
-    {
-        return view('admin.biodata.page.create');
-    }
-
-    public function show($id)
-    {
-        $data = Biodata::findOrFail($id);
-
-        return view('admin.biodata.page.show', compact('data'));
-    }
-
-    public function store(Request $request)
-    {
-        $rules = [
-            'nama' => 'required|unique:biodata,nama',
-            'jenis_kelamin' => 'required',
-            'tgl_lahir' => 'required|date',
-            'foto' => 'nullable|file|mimes:jpeg,png,jpg|max:2048',
-        ];
-
-        $messages = [
-            'nama.required' => 'Nama wajib diisi.',
-            'nama.unique' => 'Nama sudah digunakan.',
-            'jenis_kelamin.required' => 'Jenis kelamin wajib diisi.',
-            'tgl_lahir.required' => 'Tanggal lahir wajib diisi.',
-            'tgl_lahir.date' => 'Tanggal lahir harus berupa tanggal yang valid.',
-            'foto.file' => 'Foto harus berupa file.',
-            'foto.mimes' => 'Format foto harus jpeg, png, atau jpg.',
-            'foto.max' => 'Ukuran foto maksimal 2MB.',
-        ];
-
-        $request->validate($rules, $messages);
-
-        DB::beginTransaction();
-        try {
-            if ($request->hasFile('foto')) {
-                $foto = $request->file('foto');
-                $ext = $foto->getClientOriginalExtension();
-                $filename = Str::random(25) . '.' . $ext;
-                $foto->move(public_path('assets/biodata/'), $filename);
-            }
-
-            $db = [
-                'nama' => $request->nama,
-                'jenis_kelamin' => $request->jenis_kelamin,
-                'tgl_lahir' => $request->tgl_lahir,
-                'foto' => $filename ?? ''
-            ];
-
-            Biodata::create($db);
-
-            DB::commit();
-
-            return response()->json(['status' => 'success']);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'status' => 'error',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function update(Request $request, $id)
-    {
-        $data = Biodata::findOrFail($id);
-
-        $rules = [
-            'nama' => 'required|unique:biodata,nama,' . $data->id . ',id',
-            'jenis_kelamin' => 'required',
-            'tgl_lahir' => 'required|date',
-            'foto' => 'nullable|file|mimes:jpeg,png,jpg|max:2048',
-        ];
-
-        $messages = [
-            'nama.required' => 'Nama wajib diisi.',
-            'nama.unique' => 'Nama sudah digunakan.',
-            'jenis_kelamin.required' => 'Jenis kelamin wajib diisi.',
-            'tgl_lahir.required' => 'Tanggal lahir wajib diisi.',
-            'tgl_lahir.date' => 'Tanggal lahir harus berupa tanggal yang valid.',
-            'foto.file' => 'Foto harus berupa file.',
-            'foto.mimes' => 'Format foto harus jpeg, png, atau jpg.',
-            'foto.max' => 'Ukuran foto maksimal 2MB.',
-        ];
-
-        $request->validate($rules, $messages);
-
-        DB::beginTransaction();
-        try {
-            if ($request->hasFile('foto')) {
-                if (!empty($data->foto) && file_exists(public_path('assets/biodata/' . $data->foto))) {
-                    unlink(public_path('assets/biodata/' . $data->foto));
-                }
-
-                $foto = $request->file('foto');
-                $ext = $foto->getClientOriginalExtension();
-                $filename = Str::random(25) . '.' . $ext;
-                $foto->move(public_path('assets/biodata/'), $filename);
-            }
-
-            $db = [
-                'nama' => $request->nama,
-                'jenis_kelamin' => $request->jenis_kelamin,
-                'tgl_lahir' => $request->tgl_lahir,
-                'foto' => $filename ?? $data->foto
-            ];
-
-            $data->update($db);
-
-            DB::commit();
-
-            return response()->json(['status' => 'success']);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'status' => 'error',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function destroy($id)
-    {
-        DB::beginTransaction();
-        try {
-            $data = Biodata::findOrFail($id);
-
-            if (!empty($data->foto) && file_exists(public_path('assets/biodata/' . $data->foto))) {
-                unlink(public_path('assets/biodata/' . $data->foto));
-            }
-
-            $data->delete();
-
-            DB::commit();
-
-            return response()->json(['status' => 'success']);
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'status' => 'error',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-}
-```
-
-## Method Index (DataTables)
-
-### Template Method Index
+#### 4.1. Index Method — Halaman Utama + DataTable Ajax
 
 ```php
 public function index(Request $request)
 {
-    Carbon::setLocale('id'); // Set locale untuk format Indonesia
-
     if ($request->ajax()) {
-        $data = {ModelName}::orderBy('id', 'desc');
-
-        return DataTables::of($data)
-            ->addIndexColumn()
-            ->editColumn('field_name', function ($row) {
-                // Custom formatting logic
-                return $formattedValue;
-            })
-            ->addColumn('action', function ($row) {
-                $showUrl = route('{entity}-modal.show', $row->id); // atau {entity}-page.show
-                $deleteUrl = route('{entity}-modal.destroy', $row->id); // atau {entity}-page.destroy
-
-                $btn = '<div class="d-flex justify-content-center">';
-                $btn .= '<button class="btn btn-primary btn-sm edit-button" data-id="' . e($row->id) . '" data-url="' . e($showUrl) . '">Edit</button>';
-                $btn .= '<form action="' . e($deleteUrl) . '" method="POST" style="display:inline;">' . csrf_field() . method_field('DELETE') . '<button type="submit" class="delete-button btn btn-danger btn-sm ml-2">Hapus</button></form>';
-                $btn .= '</div>';
-                return $btn;
-            })
-            ->rawColumns(['action'])
-            ->make(true);
+        return $this->productService->dataTable();
     }
 
-    return view('admin.{entity}.modal.index'); // atau admin.{entity}.page.index
+    return view('admin.products.index');
 }
 ```
 
-## Method Show
+**Penjelasan:**
 
-### Modal Controller Show Method
+| Bagian                  | Fungsi                                                         |
+| ----------------------- | -------------------------------------------------------------- |
+| `if ($request->ajax())` | Melayani permintaan DataTable, mengembalikan JSON dari Service |
+| `return view(...)`      | Menampilkan Blade jika bukan Ajax                              |
+
+---
+
+#### 4.2. Show Method — Detail Data
 
 ```php
 public function show($id)
 {
-    $data = {ModelName}::findOrFail($id);
-
-    return response()->json([
-        'status' => 'success',
-        'data' => $data,
-    ]);
-}
-```
-
-### Page Controller Show Method
-
-```php
-public function show($id)
-{
-    $data = {ModelName}::findOrFail($id);
-
-    return view('admin.{entity}.page.show', compact('data'));
-}
-```
-
-### Page Controller Create Method
-
-```php
-public function create()
-{
-    return view('admin.{entity}.page.create');
-}
-```
-
-## Method Store
-
-### Template Method Store
-
-```php
-public function store(Request $request)
-{
-    // Validation rules
-    $rules = [
-        'field_name' => 'required|unique:table_name,field_name',
-        'file_field' => 'nullable|file|mimes:jpeg,png,jpg|max:2048',
-    ];
-
-    // Custom messages
-    $messages = [
-        'field_name.required' => 'Field name wajib diisi.',
-        'field_name.unique' => 'Field name sudah digunakan.',
-        'file_field.file' => 'File harus berupa file.',
-        'file_field.mimes' => 'Format file harus jpeg, png, atau jpg.',
-        'file_field.max' => 'Ukuran file maksimal 2MB.',
-    ];
-
-    $request->validate($rules, $messages);
-
-    DB::beginTransaction();
     try {
-        // File upload logic
-        if ($request->hasFile('file_field')) {
-            $file = $request->file('file_field');
-            $ext = $file->getClientOriginalExtension();
-            $filename = Str::random(25) . '.' . $ext;
-            $file->move(public_path('assets/{entity}/'), $filename);
-        }
+        $data = $this->productService->getProductById($id);
 
-        // Data preparation
-        $db = [
-            'field_name' => $request->field_name,
-            'file_field' => $filename ?? ''
-        ];
-
-        {ModelName}::create($db);
-
-        DB::commit();
-
-        return response()->json(['status' => 'success']);
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return response()->json([
-            'status' => 'error',
-            'error' => $e->getMessage()
-        ], 500);
+        return ResponseHelper::jsonSuccess($data, 'Product berhasil ditemukan.');
+    } catch (Exception $e) {
+        return ResponseHelper::jsonError($e->getMessage(), 404);
     }
 }
 ```
 
-## Method Update
+**Penjelasan:**
 
-### Template Method Update
+* Mengambil data dari Service.
+* Mengembalikan JSON success/error berdasarkan hasil.
+
+---
+
+#### 4.3. Store Method — Create Data Baru
 
 ```php
-public function update(Request $request, $id)
+public function store(StoreProductRequest $request)
 {
-    $data = {ModelName}::findOrFail($id);
-
-    // Validation rules with unique exception
-    $rules = [
-        'field_name' => 'required|unique:table_name,field_name,' . $data->id . ',id',
-        'file_field' => 'nullable|file|mimes:jpeg,png,jpg|max:2048',
-    ];
-
-    // Custom messages
-    $messages = [
-        'field_name.required' => 'Field name wajib diisi.',
-        'field_name.unique' => 'Field name sudah digunakan.',
-        'file_field.file' => 'File harus berupa file.',
-        'file_field.mimes' => 'Format file harus jpeg, png, atau jpg.',
-        'file_field.max' => 'Ukuran file maksimal 2MB.',
-    ];
-
-    $request->validate($rules, $messages);
-
-    DB::beginTransaction();
     try {
-        // File upload logic with old file deletion
-        if ($request->hasFile('file_field')) {
-            if (!empty($data->file_field) && file_exists(public_path('assets/{entity}/' . $data->file_field))) {
-                unlink(public_path('assets/{entity}/' . $data->file_field));
-            }
+        $this->productService->createProduct($request, $request->file('image'));
 
-            $file = $request->file('file_field');
-            $ext = $file->getClientOriginalExtension();
-            $filename = Str::random(25) . '.' . $ext;
-            $file->move(public_path('assets/{entity}/'), $filename);
-        }
-
-        // Data preparation
-        $db = [
-            'field_name' => $request->field_name,
-            'file_field' => $filename ?? $data->file_field
-        ];
-
-        $data->update($db);
-
-        DB::commit();
-
-        return response()->json(['status' => 'success']);
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return response()->json([
-            'status' => 'error',
-            'error' => $e->getMessage()
-        ], 500);
+        return ResponseHelper::jsonSuccess(null, 'Product berhasil ditambahkan.');
+    } catch (Exception $e) {
+        return ResponseHelper::jsonError($e->getMessage());
     }
 }
 ```
 
-## Method Destroy
+**Penjelasan:**
 
-### Template Method Destroy
+* Input sudah divalidasi oleh FormRequest.
+* Controller hanya meneruskan data ke Service.
+* Response dikembalikan menggunakan Helper.
+
+---
+
+#### 4.4. Update Method — Update Data
+
+```php
+public function update(UpdateProductRequest $request, $id)
+{
+    try {
+        $this->productService->updateProduct($request, $id, $request->file('image'));
+
+        return ResponseHelper::jsonSuccess(null, 'Product berhasil diupdate.');
+    } catch (Exception $e) {
+        return ResponseHelper::jsonError($e->getMessage());
+    }
+}
+```
+
+**Penjelasan:**
+
+* Tidak ada logika update di controller.
+* Semua dipindahkan ke Service.
+
+---
+
+#### 4.5. Destroy Method — Hapus Data
 
 ```php
 public function destroy($id)
 {
-    DB::beginTransaction();
     try {
-        $data = {ModelName}::findOrFail($id);
+        $this->productService->deleteProduct($id);
 
-        // Delete associated file
-        if (!empty($data->file_field) && file_exists(public_path('assets/{entity}/' . $data->file_field))) {
-            unlink(public_path('assets/{entity}/' . $data->file_field));
-        }
-
-        $data->delete();
-
-        DB::commit();
-
-        return response()->json(['status' => 'success']);
-    } catch (\Exception $e) {
-        DB::rollBack();
-
-        return response()->json([
-            'status' => 'error',
-            'error' => $e->getMessage()
-        ], 500);
+        return ResponseHelper::jsonSuccess(null, 'Product berhasil dihapus.');
+    } catch (Exception $e) {
+        return ResponseHelper::jsonError($e->getMessage());
     }
 }
 ```
 
-## Perbedaan Modal vs Page Controller
+**Penjelasan:**
 
-### Modal Controller
+* Controller hanya memanggil Service.
+* Error handling tetap seragam melalui ResponseHelper.
 
-| Method      | Purpose                                 | Response               |
-| ----------- | --------------------------------------- | ---------------------- |
-| `index()`   | Menampilkan list data dengan DataTables | View + AJAX DataTables |
-| `show($id)` | Mengambil data untuk edit modal         | JSON response          |
-| `store()`   | Menyimpan data baru                     | JSON response          |
-| `update()`  | Update data existing                    | JSON response          |
-| `destroy()` | Hapus data                              | JSON response          |
+## 5. Aturan Wajib Controller
 
-### Page Controller
+| Dilarang                       | Alasannya                    |
+| ------------------------------ | ---------------------------- |
+| ❌ Query database di controller | Harus menggunakan Service    |
+| ❌ Upload file                  | Gunakan Trait via Service    |
+| ❌ Validasi manual              | Gunakan FormRequest          |
+| ❌ Response JSON custom         | Harus memakai ResponseHelper |
+| ❌ Menulis logika bisnis        | Controller harus “tipis”     |
+| ❌ Menangani transaksi          | Ditangani di Service         |
 
-| Method      | Purpose                                 | Response               |
-| ----------- | --------------------------------------- | ---------------------- |
-| `index()`   | Menampilkan list data dengan DataTables | View + AJAX DataTables |
-| `create()`  | Menampilkan form create                 | View                   |
-| `show($id)` | Menampilkan form edit                   | View                   |
-| `store()`   | Menyimpan data baru                     | JSON response          |
-| `update()`  | Update data existing                    | JSON response          |
-| `destroy()` | Hapus data                              | JSON response          |
+## 6. Ringkasan
 
-## Best Practices
+**Controller = perantara**
 
-### 1. **Error Handling**
+Controller hanya:
 
--   Selalu gunakan try-catch untuk operasi database
--   Gunakan database transactions untuk operasi yang kompleks
--   Return meaningful error messages
+* menerima request
+* memanggil service
+* mengembalikan response (JSON/Blade)
+* menggunakan FormRequest
 
-### 2. **Security**
+**Controller tidak boleh berisi logika bisnis dalam bentuk apa pun.**
 
--   Validasi semua input user
--   Gunakan `e()` helper untuk escape HTML output
--   Sanitasi file upload
+## 7. Contoh Controller Lengkap
 
-### 3. **Performance**
-
--   Gunakan eager loading untuk relationships
--   Optimasi query database
--   Implementasikan pagination untuk data besar
-
-### 4. **Code Organization**
-
--   Pisahkan logic bisnis ke service layer jika kompleks
--   Gunakan repository pattern untuk operasi database yang kompleks
--   Implementasikan form request untuk validasi yang kompleks
-
-### 5. **Response Format**
+*(Tetap ditampilkan sebagai referensi standar implementasi)*
 
 ```php
-// Success response
-return response()->json(['status' => 'success']);
+class ProductController extends Controller
+{
+    protected $productService;
 
-// Error response
-return response()->json([
-    'status' => 'error',
-    'error' => $e->getMessage()
-], 500);
+    public function __construct(ProductService $productService)
+    {
+        $this->productService = $productService;
+    }
 
-// Data response
-return response()->json([
-    'status' => 'success',
-    'data' => $data,
-]);
+    public function index(Request $request)
+    {
+        if ($request->ajax()) {
+            return $this->productService->dataTable();
+        }
+
+        return view('admin.products.index');
+    }
+
+    public function show($id)
+    {
+        try {
+            $data = $this->productService->getProductById($id);
+
+            return ResponseHelper::jsonSuccess($data, 'Product berhasil ditemukan.');
+        } catch (Exception $e) {
+            return ResponseHelper::jsonError($e->getMessage(), 404);
+        }
+    }
+
+    public function store(StoreProductRequest $request)
+    {
+        try {
+            $this->productService->createProduct($request, $request->file('image'));
+
+            return ResponseHelper::jsonSuccess(null, 'Product berhasil ditambahkan.');
+        } catch (Exception $e) {
+            return ResponseHelper::jsonError($e->getMessage());
+        }
+    }
+
+    public function update(UpdateProductRequest $request, $id)
+    {
+        try {
+            $this->productService->updateProduct($request, $id, $request->file('image'));
+
+            return ResponseHelper::jsonSuccess(null, 'Product berhasil diupdate.');
+        } catch (Exception $e) {
+            return ResponseHelper::jsonError($e->getMessage());
+        }
+    }
+
+    public function destroy($id)
+    {
+        try {
+            $this->productService->deleteProduct($id);
+
+            return ResponseHelper::jsonSuccess(null, 'Product berhasil dihapus.');
+        } catch (Exception $e) {
+            return ResponseHelper::jsonError($e->getMessage());
+        }
+    }
+}
 ```
-
-## Checklist Controller
-
-### Structure
-
--   [ ] Extends Controller class
--   [ ] Proper namespace
--   [ ] Required imports
--   [ ] Proper method signatures
-
-### Methods
-
--   [ ] Index method dengan DataTables
--   [ ] Show method sesuai tipe CRUD (Modal/Page)
--   [ ] Store method dengan validasi
--   [ ] Update method dengan validasi
--   [ ] Destroy method dengan file cleanup
-
-### Error Handling
-
--   [ ] Try-catch untuk database operations
--   [ ] Database transactions
--   [ ] Proper error responses
--   [ ] File cleanup on errors
-
-### Security
-
--   [ ] Input validation
--   [ ] File upload validation
--   [ ] HTML escaping
--   [ ] CSRF protection
-
-### Naming Convention
-
--   [ ] Modal Controller: `{Entity}ModalController`
--   [ ] Page Controller: `{Entity}PageController`
--   [ ] Route names dengan suffix modal/page
--   [ ] View paths sesuai struktur modal/page
-
----
-
-**Selanjutnya**: [Model Standards](03-model-standards.md)
