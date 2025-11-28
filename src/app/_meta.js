@@ -10,6 +10,8 @@ export default {
   service: "Service",
   trait: "Trait",
   helper: "Helper",
+  migration: "Migration",
+  model: "Model",
   "": {
     type: "separator",
   },

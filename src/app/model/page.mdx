@@ -1,0 +1,244 @@
+# Standar Model
+
+Model merupakan representasi dari tabel di database dan menjadi pusat **business state** (keadaan data). Pada arsitektur kita, Model bertugas sebagai _data layer_ yang berhubungan langsung dengan database melalui Eloquent ORM.
+
+Model **tidak mengandung logika bisnis berat** — logika berat tetap berada di _Service_.
+
+## 1. Tujuan Model dalam Arsitektur
+
+Model bertugas untuk:
+
+- menghubungkan tabel database dengan aplikasi
+- menyediakan relasi antar tabel
+- menyediakan akses data terstruktur menggunakan Eloquent
+- menjaga integritas data level database
+- mempermudah query karena Eloquent bersifat expressive
+
+Model **bukan**:
+
+- ❌ tempat validasi
+- ❌ tempat aturan otorisasi
+- ❌ tempat logika kompleks
+- ❌ tempat upload file
+- ❌ tempat transaksi database
+
+## 2. Aturan Wajib untuk Model
+
+| Aturan                                                    | Penjelasan                                      |
+| --------------------------------------------------------- | ----------------------------------------------- |
+| **1. Kolom yang dapat diisi harus menggunakan $fillable** | Untuk mencegah Mass Assignment Vulnerability    |
+| **2. Tidak menaruh logika bisnis**                        | Logika berat tetap di Service                   |
+| **3. Relasi ditulis di Model, bukan Controller**          | Controller hanya memanggil Service              |
+| **4. Selalu gunakan tipe data yang benar**                | Mengikuti standar migration                     |
+| **5. Gunakan nama relasi yang deskriptif**                | Memudahkan pembacaan                            |
+| **6. Gunakan Accessor & Mutator secara bijak**            | Jangan terlalu banyak kecuali sangat diperlukan |
+
+## 3. Struktur Model Standar
+
+Berikut struktur dasar model yang kita gunakan:
+
+```php
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Product extends Model
+{
+    use HasFactory;
+
+    protected $table = 'products';
+
+    protected $fillable = [
+        'name',
+        'stock',
+        'price',
+        'image',
+    ];
+}
+```
+
+**Penjelasan:**
+
+- `HasFactory` wajib untuk kebutuhan testing.
+- `protected $table` optional jika nama tabel tidak jamak.
+- `fillable` _wajib ada_ agar field yang boleh diisi terdefinisi jelas.
+
+## 4. Relasi
+
+Berikut daftar relasi standar yang digunakan di Laravel:
+
+| Relasi                  | Digunakan ketika               |
+| ----------------------- | ------------------------------ |
+| `hasOne`                | Satu model punya satu relasi   |
+| `hasMany`               | Satu model punya banyak relasi |
+| `belongsTo`             | Model ini milik model lain     |
+| `belongsToMany`         | Many-to-many (pivot)           |
+| `morphOne`, `morphMany` | Polymorphic                    |
+| `morphTo`               | Polymorphic reverse            |
+
+---
+
+### Contoh Relasi Dalam Model
+
+**Product memiliki banyak InventoryLog**
+
+```php
+public function inventoryLogs()
+{
+    return $this->hasMany(InventoryLog::class);
+}
+```
+
+**Product milik Category**
+
+```php
+public function category()
+{
+    return $this->belongsTo(Category::class);
+}
+```
+
+**User banyak role melalui pivot**
+
+```php
+public function roles()
+{
+    return $this->belongsToMany(Role::class, 'user_roles');
+}
+```
+
+## 5. Accessor & Mutator (Opsional, Tidak Wajib)
+
+Digunakan jika ingin mengubah nilai **sebelum disimpan** atau **sebelum ditampilkan**.
+
+### Contoh Accessor
+
+Misal ingin menampilkan harga otomatis dalam format rupiah:
+
+```php
+public function getPriceFormattedAttribute()
+{
+    return 'Rp ' . number_format($this->price, 0, ',', '.');
+}
+```
+
+Maka penggunaan:
+
+```php
+$product->price_formatted;
+```
+
+---
+
+### Contoh Mutator
+
+Jika user memasukkan nama produk dengan spasi berlebihan:
+
+```php
+public function setNameAttribute($value)
+{
+    $this->attributes['name'] = trim($value);
+}
+```
+
+## 6. Query Scope (Wajib Jika Query Dipakai Berulang)
+
+Scope sangat berguna agar coding tetap bersih.
+
+### Contoh Scope: Active Only
+
+```php
+public function scopeActive($query)
+{
+    return $query->where('is_active', 1);
+}
+```
+
+Penggunaan:
+
+```php
+Product::active()->get();
+```
+
+## 7. Casting Data
+
+Gunakan `$casts` untuk memastikan tipe data sesuai.
+
+Contoh:
+
+```php
+protected $casts = [
+    'price' => 'decimal:2',
+    'is_active' => 'boolean',
+    'metadata' => 'array',
+];
+```
+
+## 8. Kesalahan yang Tidak Boleh Dilakukan
+
+- ❌ Menaruh logika bisnis di model
+- ❌ Query berat langsung di controller
+- ❌ Mengubah data di accessor secara berlebihan
+- ❌ Menggunakan mutator untuk tugas servis seperti upload file
+- ❌ Meletakkan segala hal dalam satu model (God Model)
+
+## 9. Contoh Model Final (Best Practice)
+
+```php
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Product extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'category_id',
+        'name',
+        'price',
+        'stock',
+        'image',
+        'is_active',
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
+        'price' => 'decimal:2',
+    ];
+
+    // ============================
+    // Relasi
+    // ============================
+
+    public function category()
+    {
+        return $this->belongsTo(Category::class);
+    }
+
+    public function inventoryLogs()
+    {
+        return $this->hasMany(InventoryLog::class);
+    }
+
+    // ============================
+    // Accessor
+    // ============================
+
+    public function getPriceFormattedAttribute()
+    {
+        return 'Rp ' . number_format($this->price, 0, ',', '.');
+    }
+
+    // ============================
+    // Scope
+    // ============================
+
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+}
+```

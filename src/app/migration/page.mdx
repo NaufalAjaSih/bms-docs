@@ -1,0 +1,148 @@
+# Standar Migration
+
+Migration digunakan untuk membuat struktur database secara konsisten di dalam tim. Pada bagian ini, kita menetapkan standar tipe data serta kapan harus menggunakannya.
+
+## 1. Tipe Data yang Didukung oleh Laravel Migration
+
+#### A. Numerik
+
+| Tipe                        | Keterangan                | Contoh Penggunaan            |
+| --------------------------- | ------------------------- | ---------------------------- |
+| `integer()`                 | Angka bulat, range medium | jumlah, stok, urutan         |
+| `bigInteger()`              | Angka besar               | foreign key id tabel besar   |
+| `tinyInteger()`             | Angka kecil               | status (0/1), boolean custom |
+| `decimal(total, precision)` | Angka desimal presisi     | harga, saldo                 |
+| `double()`                  | Angka desimal besar       | perhitungan ilmiah           |
+
+---
+
+#### B. String / Text
+
+| Tipe                 | Keterangan                      | Contoh                              |
+| -------------------- | ------------------------------- | ----------------------------------- |
+| `string()` (varchar) | Maksimal 255 karakter           | nama, email, telepon                |
+| `char()`             | Karakter tetap panjang tertentu | kode negara, kode unik 2–5 karakter |
+| `text()`             | Teks panjang                    | deskripsi                           |
+| `longText()`         | Teks sangat panjang             | konten artikel, JSON panjang        |
+
+---
+
+#### C. Tanggal & Waktu
+
+| Tipe            | Keterangan                   |
+| --------------- | ---------------------------- |
+| `date()`        | hanya tanggal                |
+| `time()`        | hanya waktu                  |
+| `dateTime()`    | tanggal & waktu              |
+| `timestamp()`   | format timestamp             |
+| `softDeletes()` | deleted_at untuk soft delete |
+| `timestamps()`  | created_at & updated_at      |
+
+---
+
+#### D. Boolean
+
+| Tipe        | Keterangan |
+| ----------- | ---------- |
+| `boolean()` | true/false |
+
+---
+
+#### E. Lainnya
+
+| Tipe          | Keterangan          |                       |
+| ------------- | ------------------- | --------------------- |
+| `json()`      | menyimpan JSON      | setting, metadata     |
+| `enum()`      | pilihan terbatas    | status: pending, paid |
+| `uuid()`      | ID unik universal   |                       |
+| `foreignId()` | foreign key standar |                       |
+
+## 2. Kapan Menggunakan Tipe Data Tertentu
+
+Bagian ini penting agar struktur database tetap konsisten dan tidak membingungkan.
+
+#### A. Integer vs Decimal
+
+**Gunakan `integer` jika nilai adalah angka untuk dihitung**, contohnya:
+
+- jumlah barang
+- stok
+- jumlah transaksi
+- urutan menu
+
+**Gunakan `decimal` atau `double` jika nilai adalah angka uang**, karena:
+
+- membutuhkan presisi
+- harus akurat pada nilai koma
+
+Contoh:
+
+```php
+$table->decimal('price', 12, 2);
+```
+
+---
+
+#### B. String vs Integer (untuk nomor telepon dan data sejenis)
+
+**Nomor telepon → gunakan `string`**, bukan `integer`.
+Alasannya:
+
+- tidak pernah dihitung
+- bisa berawalan 0
+- bisa mengandung +62
+- panjangnya tidak pasti
+
+Contoh:
+
+```php
+$table->string('phone', 20);
+```
+
+**Berlaku juga untuk:**
+
+- NIK
+- KTP
+- Kode pos
+- Nomor rekening
+- Nomor invoice
+
+---
+
+#### C. Text vs LongText
+
+- `text` cukup untuk deskripsi pendek (1–1000 kata)
+- `longText` untuk konten panjang seperti artikel, markdown, atau JSON besar
+
+---
+
+#### D. Enum vs String
+
+**enum cocok jika pilihan tetap dan jarang berubah**, misal:
+
+- status pembayaran: `['pending', 'paid', 'partial']`
+- jenis pembayaran: `['bulanan', 'tahunan']`
+
+Jika pilihan sering berubah → **gunakan string** untuk lebih fleksibel.
+
+---
+
+#### E. UUID vs Big Integer
+
+- Gunakan **uuid** untuk aplikasi besar yang mungkin bersifat distributed / microservice.
+- Gunakan **bigInteger (auto increment)** untuk aplikasi monolit kecil–menengah.
+
+## 3. Contoh Standar Migration
+
+```php
+Schema::create('students', function (Blueprint $table) {
+    $table->id(); // big integer auto increment
+    $table->string('name', 100);
+    $table->string('phone', 20); // bukan integer
+    $table->date('birth_date');
+    $table->enum('gender', ['male', 'female']);
+    $table->decimal('balance', 12, 2)->default(0);
+    $table->timestamps();
+    $table->softDeletes();
+});
+```
