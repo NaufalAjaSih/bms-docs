@@ -1,0 +1,303 @@
+# View — Standar Penulisan
+
+View adalah huruf kedua dalam akronim **MVC (Model–View–Controller)**. Berbeda dengan Model dan Controller yang didominasi logika PHP, pada View kita akan bekerja dengan **HTML, Blade, CSS, dan Javascript**.
+
+View berfungsi sebagai **presentation layer**, yaitu bagian yang menyampaikan informasi ke pengguna.
+
+Karena View adalah bagian yang paling sering berinteraksi dengan user, maka kebersihan dan kerapihan View **sama pentingnya** dengan Model & Controller agar mudah dirawat.
+
+Dokumentasi ini memuat seluruh aturan, gaya penulisan, dan standar View yang harus diikuti oleh tim.
+
+## 1. Memecah File
+
+Seiring berkembangnya fitur, file Blade akan makin panjang dan kompleks. Jika dibiarkan, View menjadi sulit dibaca dan sulit di-maintain.
+
+Maka aturan inti:
+
+> **Jangan biarkan satu file View membengkak. Pecah menjadi sub view.**
+
+Keuntungan memecah file:
+
+- mudah dibaca
+- mudah dicari
+- meminimalkan konflik Git
+- mempermudah debugging
+- mempercepat development dalam tim
+
+Prinsipnya:
+
+> Ketika satu View sudah terlalu panjang atau punya blok UI besar → **pecah menjadi sub view**.
+
+## 2. Biasakan Memakai Sub View
+
+Contoh mockup dashboard memiliki 3 area:
+
+1. Ringkasan (Summary)
+2. Grafik (Chart)
+3. Popular Post
+
+Maka struktur View seharusnya dipisah seperti ini:
+
+```
+_summary.blade.php
+_chart.blade.php
+_popularPost.blade.php
+```
+
+Pemanggilannya:
+
+```blade
+@extends('layout')
+
+@section('content')
+    <h1>Dashboard</h1>
+    @include('_summary')
+    @include('_chart')
+    @include('_popularPost')
+@endsection
+```
+
+Dari satu file 100 baris → menjadi 4 file 25 baris.
+Lebih modular, ringan, mudah dibaca.
+
+## 3. Penamaan Sub View
+
+Penamaan mengikuti aturan:
+
+- Gunakan prefiks underline:
+  **`_namaSubView.blade.php`**
+
+Tujuan:
+
+- mudah dibedakan dengan view utama
+- editor akan mengelompokkan sub view di bagian atas
+- efisien dan langsung terbaca oleh developer
+
+Contoh:
+
+```
+_summary.blade.php
+_chart.blade.php
+_popularPost.blade.php
+```
+
+Jika disimpan dalam folder khusus:
+
+```
+dashboard/
+    summary.blade.php
+    chart.blade.php
+    popularPost.blade.php
+```
+
+> Jika ada folder khusus seperti `dashboard/`, tidak wajib menggunakan `_`.
+
+Ingat prinsip: **Kelompokkan yang sejenis.**
+
+## 4. Layout vs Konten
+
+View harus dipisahkan menjadi:
+
+#### A. Layout (Kerangka Halaman)
+
+Berisi:
+
+- struktur HTML global
+- header
+- sidebar
+- footer
+- style & script global
+
+#### B. Konten (Isi Halaman)
+
+Berisi:
+
+- form
+- tabel
+- konten spesifik halaman
+- include sub view
+
+**Contoh salah (struktur grid hilang dan tidak jelas):**
+
+```blade
+<div class="container">
+    <div class="row">
+      @include('_weather')
+      @include('_profile-stat')
+      @include('_blog')
+      @include('_profile-full')
+      @include('_calendar')
+      @include('_searchbox')
+      @include('_expertise')
+      @include('_inbox')
+      @include('_todo')
+    </div>
+</div>
+```
+
+Apa yang salah dari kode di atas?
+
+Kita kehilangan informasi tentang susunan grid. Melihat kode seperti di atas, sulit untuk membayangkan bagaimana hasil rendering halaman tanpa melihat langsung di browser atau melihat satu per satu isi setiap sub view.
+Cara yang lebih baik adalah dengan mengeksplisitkan struktur grid di view utama.
+
+**Contoh benar (layout terlihat):**
+
+```blade
+<div class="container">
+  <div class="row">
+
+    <div class="col-sm-4">
+      @include('_weather')
+      @include('_profile-stat')
+      @include('_blog')
+    </div>
+
+    <div class="col-sm-4">
+      @include('_profile-full')
+      @include('_calendar')
+    </div>
+
+    <div class="col-sm-4">
+      @include('_searchbox')
+      @include('_expertise')
+      @include('_inbox')
+      @include('_todo')
+    </div>
+
+  </div>
+</div>
+```
+
+Sekarang terlihat dengan jelas bahwa halaman di atas terbagi menjadi 3 kolom. Dengan meletakkan tag HTML untuk layouting di view utama, kamu bisa mengganti susunan layout dengan sangat mudah. Cukup memodifikasi posisi @include. Sub view tidak perlu diubah.
+
+Prinsip:
+
+> View utama mengatur layout.
+> Sub view merender konten.
+
+## 5. Jangan Menyisipkan Blade ke Dalam Javascript
+
+Contoh buruk:
+
+```javascript
+url: {{ route('comment.store') }},
+```
+
+Masalah:
+
+1. perpindahan konteks (context switching) PHP → JS
+2. saat memindahkan JS ke file `.js`, fungsi `route()` tidak tersedia
+3. rawan salah sintaks
+
+Gunakan dua cara:
+
+#### A. Passing sebagai data-attribute
+
+```blade
+<button id="submitBtn" data-url="{{ route('comment.store') }}">
+    Kirim
+</button>
+```
+
+JS:
+
+```javascript
+let url = $("#submitBtn").data("url");
+```
+
+#### B. Definisikan satu blok transisi
+
+```blade
+<script>
+    const URL = "{{ route('comment.store') }}";
+    const DATA = @json($data);
+</script>
+```
+
+Lalu gunakan di JS tanpa Blade lagi.
+
+## 6. Jangan Pisahkan JS dan Pasangan HTML-nya
+
+Jika sub view membutuhkan JS → simpan JS di dalam sub view-nya.
+
+**❌ SALAH**
+
+JS disimpan di main view:
+
+```blade
+@include('_popularPost')
+
+@push('script')
+<script>
+   $('#popularPost .item').on('click', ...)
+</script>
+@endpush
+```
+
+Pembaca kode tidak tahu dari mana `#popularPost` berasal.
+
+**✔ BENAR**
+
+JS ditempatkan di sub view:
+
+```blade
+<!-- _popularPost.blade.php -->
+
+<section id="popularPost">
+    @foreach ($popularPost as $post)
+        <div class="item">{{ $post->title }}</div>
+    @endforeach
+</section>
+
+@push('script')
+<script>
+   $('#popularPost .item').on('click', ...)
+</script>
+@endpush
+```
+
+---
+
+#### Untuk JS yang dipakai banyak sub view:
+
+Gunakan **penunjuk arah**, seperti `data-role`:
+
+```blade
+<section data-role="summaryCard"> @include('_summary') </section>
+<section data-role="statistic"> @include('_chart') </section>
+<section data-role="popularPost"> @include('_popularPost') </section>
+```
+
+JS:
+
+```javascript
+$('[data-role="popularPost"] .item').doSomething(data);
+```
+
+Kini hubungan JS ↔ HTML mudah ditemukan.
+
+## 7. Sub View vs Blade Component
+
+Perbandingan:
+
+| Sub View                   | Blade Component        |
+| -------------------------- | ---------------------- |
+| mudah dibuat               | lebih kompleks         |
+| tidak reusable             | reusable               |
+| analogi: protected method  | analogi: public method |
+| otomatis mewarisi variabel | perlu parameter        |
+
+Pemakaian:
+
+- Gunakan **Sub View** → jika hanya dipakai 1 halaman.
+- Gunakan **Blade Component** → jika bisa dipakai banyak halaman.
+
+## Penutup
+
+Dokumentasi ini dibuat untuk membantu developer:
+
+- memahami struktur View yang sehat
+- menulis Blade yang mudah dibaca
+- menghindari code bloat & magic behavior
+- mempercepat pengembangan dalam tim
+- menjaga konsistensi antar halaman dan antar proyek

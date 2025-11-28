@@ -12,7 +12,9 @@ export default {
   helper: "Helper",
   migration: "Migration",
   model: "Model",
-  "": {
+  view: "View",
+  Penggunaan: {
+    title: "Penggunaan",
     type: "separator",
   },
 };
