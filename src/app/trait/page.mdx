@@ -1,0 +1,188 @@
+# Trait — Standar Penulisan & Penggunaan
+
+## 1. Pengantar Trait
+
+Trait adalah kumpulan fungsi _reusable_ yang bisa digunakan oleh **Service**, **Controller**, atau **Model** tanpa harus melakukan inheritance.
+Trait membantu kita menghindari penulisan kode berulang, khususnya untuk _utility function_ atau proses teknis yang tidak termasuk dalam business logic utama.
+
+### Tujuan Penggunaan Trait
+
+- Menghindari duplikasi kode
+- Menjaga Service tetap fokus pada business logic
+- Mempermudah pengelolaan fungsi serbaguna
+- Menstandarisasi fungsi umum (misal: upload file, generate kode, format angka)
+
+## 2. Prinsip Utama Trait
+
+1. **Trait hanya berisi fungsi teknis / utility**, bukan business logic.
+   Business logic tetap berada di Service.
+
+2. **Nama trait harus jelas dan deskriptif**, mengikuti format:
+   `NamaTrait` → `UploadTrait`, `FileTrait`, `GenerateTrait`
+
+3. **Trait tidak memanggil request secara langsung**
+   Data harus dikirim melalui parameter.
+
+4. **Trait boleh memanggil Storage, File, atau helper teknis lain.**
+
+5. **Trait tidak boleh return JSON atau Response**
+   Trait hanya return value mentah, misal string nama file.
+
+## 3. Struktur Folder Trait
+
+Semua trait wajib berada di folder:
+
+```
+app/Traits/
+```
+
+Contoh isi folder:
+
+```
+app/Traits/
+    UploadTrait.php
+    FileTrait.php
+    FormatTrait.php
+```
+
+## 4. Struktur Dasar File Trait
+
+```php
+namespace App\Traits;
+
+trait UploadTrait
+{
+    //
+}
+```
+
+Sangat sederhana — isi trait hanya fungsi-fungsi yang bisa digunakan ulang.
+
+## 5. Kapan Harus Menggunakan Trait?
+
+Gunakan Trait ketika:
+
+- Fungsi diperlukan di beberapa Service berbeda
+  (contoh: upload file dipakai di banyak modul)
+
+- Fungsi tidak termasuk business logic
+  (lebih ke teknis)
+
+- Fungsi punya kemungkinan dipakai di masa depan
+
+Jangan pakai Trait untuk hal-hal yang hanya dipakai di 1 modul — lebih baik langsung simpan di Service.
+
+## 6. Contoh Trait yang Sesuai Standar
+
+#### 6.1. Upload Trait (Standar Utama)
+
+```php
+namespace App\Traits;
+
+use Illuminate\Support\Str;
+
+trait UploadTrait
+{
+    public function uploadFile($file, $path, $oldFile = null)
+    {
+        if ($oldFile && file_exists(public_path($path . $oldFile))) {
+            unlink(public_path($path . $oldFile));
+        }
+
+        $filename = time() . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
+        $file->move(public_path($path), $filename);
+
+        return $filename;
+    }
+}
+```
+
+**Catatan Standar:**
+
+- Hanya menerima parameter, tidak memanggil request
+- Menghapus file lama jika ada
+- Menghasilkan nama file konsisten (timestamp + random string)
+
+---
+
+#### 6.2. File Trait (Delete + Cek File)
+
+```php
+namespace App\Traits;
+
+trait FileTrait
+{
+    public function deleteFile($path)
+    {
+        if (file_exists(public_path($path))) {
+            unlink(public_path($path));
+        }
+    }
+
+    public function fileExists($path)
+    {
+        return file_exists(public_path($path));
+    }
+}
+```
+
+---
+
+#### 6.3. Format Trait (Format Angka / Tanggal / Rupiah)
+
+```php
+namespace App\Traits;
+
+trait FormatTrait
+{
+    public function formatRupiah($value)
+    {
+        return number_format($value, 0, ',', '.');
+    }
+
+    public function formatDate($date)
+    {
+        return date('d-m-Y', strtotime($date));
+    }
+}
+```
+
+## 7. Cara Menggunakan Trait di Service
+
+Trait di-_use_ di dalam class:
+
+```php
+namespace App\Services;
+
+use App\Traits\UploadTrait;
+use App\Traits\FileTrait;
+
+class ProductService
+{
+    use UploadTrait, FileTrait;
+
+    // ...
+}
+```
+
+## 8. Aturan Wajib Trait
+
+| Aturan                                | Penjelasan                                |
+| ------------------------------------- | ----------------------------------------- |
+| ✔ Trait hanya untuk fungsi teknis     | bukan business logic                      |
+| ✔ Boleh digunakan oleh banyak service | meminimalkan duplikasi                    |
+| ✔ Return berupa data mentah           | bukan JSON                                |
+| ✔ Nama trait harus deskriptif         | `UploadTrait`, `FileTrait`, `FormatTrait` |
+| ❌ Tidak mengandung query database    | itu tugas Service                         |
+| ❌ Tidak memanggil request langsung   | data harus lewat parameter                |
+| ❌ Tidak mengatur transaksi database  | itu tugas Service                         |
+
+## 9. Ringkasan
+
+Trait adalah tempat untuk menyimpan fungsi umum yang sering digunakan lintas modul.
+Dengan trait:
+
+- Kode lebih konsisten
+- Tidak ada duplikasi fungsi
+- Service tetap bersih dan fokus pada business logic
+- Aplikasi lebih mudah dikelola dalam tim besar

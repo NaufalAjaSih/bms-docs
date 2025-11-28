@@ -8,12 +8,9 @@ export default {
   menu: "Dynamic Menu",
   controller: "Controller",
   service: "Service",
+  trait: "Trait",
+  helper: "Helper",
   "": {
-    type: "separator",
-    
-  },
-  component: {
-    title: "Component",
     type: "separator",
   },
 };

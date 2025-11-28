@@ -1,0 +1,213 @@
+# Helper — Standar Penulisan & Penggunaan
+
+## 1. Pengantar Helper
+
+Helper adalah kumpulan fungsi global yang bisa digunakan **di seluruh aplikasi**, termasuk Controller, Service, Model, dan Blade.
+Pada standar tim kita, Helper digunakan **hanya untuk fungsi kecil yang sangat umum**, bukan untuk sesuatu yang kompleks atau punya business logic.
+
+Tujuan utama penggunaan Helper:
+
+- Menyediakan fungsi cepat (shortcut)
+- Membantu operasi sederhana yang sering diulang
+- Membuat kode lebih clean dan mudah dibaca
+
+Helper **bukan** pengganti Trait atau Service.
+
+## 2. Prinsip Dasar Helper
+
+1. **Helper hanya untuk fungsi kecil & global**
+   Contoh: format tanggal, format angka, generate random string.
+
+2. **Helper tidak boleh berisi business logic**
+   Semua logic bisnis tetap di Service.
+
+3. **Helper tidak melakukan query database**
+   Jika perlu query → masukkan ke Repository atau Service.
+
+4. **Fungsi helper harus _pure function_**
+   Tidak bergantung pada kondisi global atau request.
+
+5. **Nama helper harus jelas dan deskriptif**
+   Contoh: `format_rupiah()`, `app_version()`.
+
+6. **Tidak boleh ada response JSON di helper**
+   Response tetap di Controller menggunakan ResponseHelper.
+
+## 3. Lokasi Helper dalam Boilerplate
+
+Semua helper berada di folder:
+
+```
+app/Helpers/
+```
+
+Contoh isi folder:
+
+```
+app/Helpers/
+    ResponseHelper.php
+    FormatHelper.php
+    TextHelper.php
+```
+
+Helper yang sifatnya _global_ akan didaftarkan di:
+
+```
+app/Providers/AppServiceProvider.php
+```
+
+atau melalui file:
+
+```
+bootstrap/helpers.php
+```
+
+## 4. Cara Registrasi Helper
+
+Kita menggunakan file khusus untuk registrasi helper:
+
+#### Step 1 — Buat file: `bootstrap/helpers.php`
+
+```php
+<?php
+
+require_once __DIR__ . '/../app/Helpers/FormatHelper.php';
+require_once __DIR__ . '/../app/Helpers/TextHelper.php';
+require_once __DIR__ . '/../app/Helpers/ResponseHelper.php';
+```
+
+---
+
+#### Step 2 — Tambahkan ke composer.json
+
+```json
+"autoload": {
+    "files": [
+        "bootstrap/helpers.php"
+    ]
+}
+```
+
+---
+
+#### Step 3 — Dump autoload
+
+```
+composer dump-autoload
+```
+
+Helper kini dapat dipanggil di mana pun.
+
+## 5. Contoh Helper yang Sesuai Standar
+
+#### 5.1. FormatHelper (Format Umum)
+
+`app/Helpers/FormatHelper.php`
+
+```php
+<?php
+
+if (! function_exists('format_rupiah')) {
+    function format_rupiah($number)
+    {
+        return number_format($number, 0, ',', '.');
+    }
+}
+
+if (! function_exists('format_date')) {
+    function format_date($date, $format = 'd-m-Y')
+    {
+        return date($format, strtotime($date));
+    }
+}
+```
+
+---
+
+#### 5.2. TextHelper (Utility Teks)
+
+```php
+<?php
+
+if (! function_exists('slugify')) {
+    function slugify($string)
+    {
+        return strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $string)));
+    }
+}
+
+if (! function_exists('short_text')) {
+    function short_text($text, $limit = 50)
+    {
+        return strlen($text) <= $limit
+            ? $text
+            : substr($text, 0, $limit) . '...';
+    }
+}
+```
+
+---
+
+#### 5.3. ResponseHelper (Standar JSON Response)
+
+**Catatan:**
+Helper ini wajib ada karena seluruh API harus punya format JSON yang sama.
+
+```php
+<?php
+
+namespace App\Helpers;
+
+class ResponseHelper
+{
+    public static function jsonSuccess($data = null, $message = 'Success', $status = 200)
+    {
+        return response()->json([
+            'status' => 'success',
+            'message' => $message,
+            'data' => $data,
+        ], $status);
+    }
+
+    public static function jsonError($message = 'Error', $status = 400, $errors = [])
+    {
+        return response()->json([
+            'status' => 'error',
+            'message' => $message,
+            'errors' => $errors,
+        ], $status);
+    }
+}
+```
+
+## 6. Aturan Wajib Helper
+
+| Aturan                             | Penjelasan                |
+| ---------------------------------- | ------------------------- |
+| ✔ Fungsi global & kecil            | Cocok untuk helper        |
+| ✔ Tidak ada query database         | Query = tugas Service     |
+| ✔ Tidak ada business logic         | Menjaga struktur bersih   |
+| ✔ Fungsi pure dan reusable         | Bisa dipakai di mana saja |
+| ✔ Nama deskriptif                  | Mudah dipahami developer  |
+| ❌ Tidak memanggil request         | Hanya pakai parameter     |
+| ❌ Tidak ada JSON dari helper lain | Kecuali ResponseHelper    |
+| ❌ Tidak menangani file upload     | Gunakan Trait             |
+
+## 7. Kapan Menggunakan Helper, Trait, atau Service?
+
+| Kebutuhan                                | Gunakan            |
+| ---------------------------------------- | ------------------ |
+| Format angka, tanggal, string            | Helper             |
+| Utility teknis (file, upload, generator) | Trait              |
+| Business logic module                    | Service            |
+| Query database                           | Repository/Service |
+
+## 8. Ringkasan
+
+Helper adalah tempat untuk fungsi kecil yang bersifat global dan sering dipakai lintas modul.
+Dengan helper, kita menjaga:
+
+- Code lebih singkat
+- Tidak ada duplikasi
+- Format response konsisten (melalui ResponseHelper)
+- Business logic tetap fokus di Service

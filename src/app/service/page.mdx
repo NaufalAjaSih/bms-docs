@@ -9,12 +9,12 @@ Semua Controller wajib memanggil Service untuk menjalankan logika bisnis, sehing
 
 #### Kenapa kita menggunakan Service Layer?
 
-* Memisahkan business logic dari controller
-* Mencegah Controller menjadi besar dan sulit dibaca
-* Memudahkan testing (service bisa di-*unit test*)
-* Logika yang sama dapat digunakan ulang di beberapa controller
-* Struktur aplikasi lebih rapi dan terorganisasi
-* Mendukung scaling aplikasi dalam jangka panjang
+- Memisahkan business logic dari controller
+- Mencegah Controller menjadi besar dan sulit dibaca
+- Memudahkan testing (service bisa di-_unit test_)
+- Logika yang sama dapat digunakan ulang di beberapa controller
+- Struktur aplikasi lebih rapi dan terorganisasi
+- Mendukung scaling aplikasi dalam jangka panjang
 
 ## 2. Prinsip Utama Penulisan Service (Wajib Diikuti)
 
@@ -50,7 +50,7 @@ class ProductService
 }
 ```
 
-Service dapat di-*inject* ke Controller melalui constructor.
+Service dapat di-_inject_ ke Controller melalui constructor.
 
 ## 4. Tanggung Jawab Service
 
@@ -58,12 +58,12 @@ Service dapat di-*inject* ke Controller melalui constructor.
 
 Contoh:
 
-* Generate SKU
-* Hitung total harga
-* Kirim notifikasi
-* Proses data sebelum disimpan
-* Validasi lanjutan (di luar FormRequest)
-* Upload & delete file
+- Generate SKU
+- Hitung total harga
+- Kirim notifikasi
+- Proses data sebelum disimpan
+- Validasi lanjutan (di luar FormRequest)
+- Upload & delete file
 
 #### Melakukan transaksi database
 
@@ -116,7 +116,7 @@ public function getProductById($id)
 }
 ```
 
-* Menggunakan `findOrFail` untuk otomatis melempar exception.
+- Menggunakan `findOrFail` untuk otomatis melempar exception.
 
 ---
 
@@ -152,6 +152,8 @@ public function dataTable()
 }
 ```
 
+---
+
 #### 6.3. Create Method (Dengan Upload File & Transaksi)
 
 ```php
@@ -185,6 +187,8 @@ public function createProduct(StoreProductRequest $data, $image = null)
 }
 ```
 
+---
+
 #### 6.4. Update Method
 
 ```php
@@ -217,6 +221,8 @@ public function updateProduct(UpdateProductRequest $data, $id, $image = null)
     }
 }
 ```
+
+---
 
 #### 6.5. Delete Method
 
@@ -252,16 +258,16 @@ public function deleteProduct($id)
 | ✔ Semua transaksi DB di Service                 | Pengelolaan data lebih aman             |
 | ✔ Gunakan Trait jika ada fungsi berulang        | Contoh upload file                      |
 | ✔ Service boleh memanggil model secara langsung | Karena dia mengatur business logic      |
-| ❌ Tidak mengembalikan JSON                      | Itu tugas Controller                    |
-| ❌ Tidak menampilkan view                        | Hanya mengolah data                     |
-| ❌ Tidak menerima request mentah                 | FormRequest memvalidasi terlebih dahulu |
+| ❌ Tidak mengembalikan JSON                     | Itu tugas Controller                    |
+| ❌ Tidak menampilkan view                       | Hanya mengolah data                     |
+| ❌ Tidak menerima request mentah                | FormRequest memvalidasi terlebih dahulu |
 
 ## 8. Ringkasan
 
 Service adalah pusat pengolahan data dan logika aplikasi.
 Arsitektur tim mewajibkan setiap developer memindahkan logika berat dari Controller ke Service agar:
 
-* Controller tetap bersih
-* Logika terstruktur
-* Code reusable
-* Aplikasi mudah dikembangkan
+- Controller tetap bersih
+- Logika terstruktur
+- Code reusable
+- Aplikasi mudah dikembangkan
