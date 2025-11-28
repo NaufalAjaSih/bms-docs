@@ -1,6 +1,6 @@
 export default {
-  "CRUD Laravel 12": {
-    title: "CRUD Laravel 12",
+  "Standar Penulisan": {
+    title: "Standar Penulisan",
     type: "separator",
   },
   pendahuluan: "Pendahuluan",
@@ -8,4 +8,12 @@ export default {
   menu: "Dynamic Menu",
   controller: "Controller",
   service: "Service",
+  "": {
+    type: "separator",
+    
+  },
+  component: {
+    title: "Component",
+    type: "separator",
+  },
 };
