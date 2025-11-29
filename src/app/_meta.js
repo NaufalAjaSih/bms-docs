@@ -4,8 +4,6 @@ export default {
     type: "separator",
   },
   pendahuluan: "Pendahuluan",
-  inisialisasi: "Inisialisasi Proyek",
-  menu: "Dynamic Menu",
   controller: "Controller",
   service: "Service",
   trait: "Trait",
@@ -14,7 +12,9 @@ export default {
   model: "Model",
   view: "View",
   Penggunaan: {
-    title: "Penggunaan",
+    title: "Penggunaan Template",
     type: "separator",
   },
+  inisialisasi: "Inisialisasi Proyek",
+  menu: "Dynamic Menu",
 };

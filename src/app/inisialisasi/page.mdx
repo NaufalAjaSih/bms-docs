@@ -1,80 +1,145 @@
 # Inisialisasi Proyek
 
-Bagian ini menjelaskan langkah-langkah untuk memulai proyek baru berdasarkan template utama Laravel tim.  
-Setiap proyek baru **wajib dimulai dari repository template** agar struktur, konfigurasi, dan dependensi tetap konsisten di seluruh proyek tim.
+Bagian ini menjelaskan langkah-langkah untuk memulai proyek baru berdasarkan **template utama**.
+Setiap proyek baru **wajib** dimulai dari repository template agar struktur folder, konfigurasi, dan standar coding tetap konsisten di seluruh proyek tim.
 
 ## Langkah-Langkah Inisialisasi
 
 ### 1. Clone Repository Template
 
-Pertama, clone repository template dari GitHub utama tim.  
-Pastikan kamu sudah memiliki akses ke repository tersebut.
+Clone repository template dari link GitHub ini.
 
 ```bash
 git clone https://github.com/NaufalAjaSih/boilerplate
-````
-
-Setelah proses clone selesai, masuk ke folder proyek:
-
-```bash
-cd laravel-template
 ```
 
-### 2. Hapus Remote Repository Asal
+Masuk ke folder proyek:
 
-Agar proyek tidak terhubung dengan repository template, lepaskan remote GitHub asal menggunakan perintah berikut:
+```bash
+cd boilerplate
+```
+
+### 2. Hapus Remote Repository Template
+
+Agar proyek tidak terhubung dengan repository sumber (template), lepaskan remote origin bawaan:
 
 ```bash
 git remote remove origin
 ```
 
-Langkah ini penting untuk menghindari commit atau push yang tidak sengaja ke repository template utama.
+Ini penting agar push tidak salah tujuan ke repository template utama.
 
 ### 3. Buat Repository Baru di GitHub
 
-Selanjutnya, buat repository baru di akun GitHub masing-masing proyek atau organisasi.
-Pastikan repository baru **kosong (tanpa README, .gitignore, atau license)** agar tidak terjadi konflik saat push pertama.
+Buat repository baru di GitHub (akun pribadi atau organisasi).
+Pastikan repository baru **kosong**, tanpa:
 
-Contoh nama repository baru:
+- README
+- .gitignore
+- License
+
+Agar tidak menyebabkan konflik saat push pertama.
+
+Contoh nama repo baru:
 
 ```
 myapp-laravel
 ```
 
-### 4. Tambahkan Remote Baru
+### 4. Tambahkan Remote Repository Baru
 
-Setelah repository baru dibuat, tambahkan remote baru ke proyek:
+Tambahkan remote baru yang diarahkan ke repository yang baru dibuat:
 
 ```bash
 git remote add origin https://github.com/username/myapp-laravel.git
 ```
 
-Kamu bisa memverifikasi remote yang sudah terpasang dengan:
+Cek remote untuk memastikan:
 
 ```bash
 git remote -v
 ```
 
-Output-nya akan menampilkan URL repository baru.
+### 5. Install Dependensi Composer
 
-### 5. Push Proyek ke Repository Baru
-
-Terakhir, kirim seluruh kode proyek ke repository baru dengan perintah berikut:
+Setelah repository siap, install semua dependensi Laravel:
 
 ```bash
+composer install
+```
+
+Pastikan Composer sudah terpasang di perangkatmu.
+
+### 6. Salin File Environment
+
+Laravel menyediakan file contoh `.env.example`.
+Salin menjadi `.env`:
+
+```bash
+cp .env.example .env
+```
+
+Jika di Windows:
+
+```powershell
+copy .env.example .env
+```
+
+### 7. Generate Application Key
+
+Laravel membutuhkan `APP_KEY` untuk enkripsi aplikasi.
+
+Jalankan:
+
+```bash
+php artisan key:generate
+```
+
+### 8. Migrasi Database
+
+Sebelum melakukan migrasi, pastikan kamu sudah mengatur konfigurasi database di dalam `.env`.
+
+Lalu jalankan migrasi:
+
+```bash
+php artisan migrate
+```
+
+Jika database belum dibuat, buat database terlebih dahulu melalui phpMyAdmin atau CLI sesuai kebutuhan.
+
+### 9. Jalankan Server Development
+
+Untuk menjalankan server Laravel:
+
+```bash
+php artisan serve
+```
+
+Server akan berjalan di:
+
+```
+http://127.0.0.1:8000
+```
+
+## 10. Push Proyek ke Repository Baru
+
+Jika semuanya sudah siap, lakukan push pertama:
+
+```bash
+git add .
+git commit -m "Initial commit"
 git push -u origin main
 ```
 
-Atau, jika proyek masih menggunakan branch `master`, gunakan:
+Atau jika menggunakan branch `master`:
 
 ```bash
 git push -u origin master
 ```
 
-Setelah langkah ini selesai, proyek sudah resmi menjadi repository mandiri yang siap digunakan dan dikembangkan oleh tim.
-
 ## Catatan Tambahan
 
-* Jangan pernah melakukan commit atau push ke repository template utama.
-* Pastikan setiap proyek baru menggunakan branch `main` sebagai standar utama.
-* Jika ingin memperbarui template, gunakan pull request khusus agar perubahan tetap terkontrol.
+- **Jangan** melakukan commit atau push ke repository template utama.
+- Gunakan branch **main** sebagai standar.
+- Jika ingin memperbarui template, gunakan **pull request** di repository template untuk menjaga konsistensi dan kontrol perubahan.
+- Pastikan setiap anggota tim mengikuti standar workflow Git yang sama.
