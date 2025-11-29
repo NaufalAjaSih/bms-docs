@@ -1,0 +1,179 @@
+# Upload Trait – Reusable Code
+
+Trait ini berfungsi sebagai helper standar untuk menangani **upload dan penghapusan file** dalam aplikasi Laravel.
+Trait ini umumnya digunakan oleh **Service Class**, sehingga controller tetap bersih dan tidak perlu menangani logika upload langsung.
+
+Dengan adanya UploadTrait, seluruh service bisa konsisten dalam melakukan upload file, membuat kode lebih rapi, reusable, dan mudah dirawat.
+
+## Lokasi File
+
+```
+app/Traits/UploadTrait.php
+```
+
+## Fungsi Dalam UploadTrait
+
+#### 1. `uploadFile($file, $path, $oldFile = null)`
+
+**Fungsi:**
+
+Mengupload file baru ke direktori tertentu dan menghapus file lama jika diberikan.
+
+**Parameter:**
+
+| Nama       | Tipe           | Deskripsi                               |
+| ---------- | -------------- | --------------------------------------- |
+| `$file`    | `UploadedFile` | File yang akan diupload                 |
+| `$path`    | `string`       | Folder tujuan (tanpa `public/`)         |
+| `$oldFile` | `string/null`  | File lama yang ingin dihapus (opsional) |
+
+**Return:**
+
+`string` — nama file baru.
+
+#### 2. `deleteFile($path)`
+
+**Fungsi:**
+
+Menghapus file dari folder `public/`.
+
+**Return:**
+
+- `true` = berhasil
+- `false` = gagal atau tidak ditemukan
+
+## Contoh Kode UploadTrait
+
+```php
+<?php
+
+namespace App\Traits;
+
+use Illuminate\Support\Str;
+
+trait UploadTrait
+{
+    public function uploadFile($file, $path, $oldFile = null)
+    {
+        if ($oldFile) {
+            $this->deleteFile($path . '/' . $oldFile);
+        }
+
+        $filename = Str::random(25) . '.' . $file->getClientOriginalExtension();
+        $file->move(public_path($path), $filename);
+
+        return $filename;
+    }
+
+    public function deleteFile($path)
+    {
+        if (file_exists(public_path($path))) {
+            return unlink(public_path($path));
+        }
+
+        return false;
+    }
+}
+```
+
+## Cara Penggunaan UploadTrait di Service
+
+UploadTrait tidak dipanggil dari Controller, tetapi digunakan di dalam sebuah Service.
+Controller hanya mengoper data → seluruh logika upload dan persiapan data dilakukan di service.
+
+## Contoh Penggunaan di Service
+
+File:
+
+```
+app/Services/ProductService.php
+```
+
+```php
+<?php
+
+namespace App\Services;
+
+use App\Models\Product;
+use App\Traits\UploadTrait;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Exception;
+
+class ProductService
+{
+    use UploadTrait;
+
+    public function createProduct($data, $image = null)
+    {
+        DB::beginTransaction();
+
+        try {
+            $filename = '';
+
+            if ($image) {
+                // Gunakan UploadTrait
+                $filename = $this->uploadFile($image, 'assets/products/');
+            }
+
+            $productData = [
+                'sku' => 'SKU-' . time() . '-' . Str::random(10),
+                'name' => $data->name,
+                'stock' => $data->stock,
+                'price' => $data->price,
+                'image' => $filename,
+                'description' => $data->description,
+            ];
+
+            $product = Product::create($productData);
+
+            DB::commit();
+
+            return $product;
+
+        } catch (Exception $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+}
+```
+
+## Contoh Controller (minimal, clean)
+
+```php
+public function store(StoreProductRequest $request, ProductService $productService)
+{
+    $product = $productService->createProduct(
+        $request,
+        $request->file('image')
+    );
+
+    return redirect()->back()->with('success', 'Product created');
+}
+```
+
+## Contoh Use Case Tambahan
+
+#### Update produk + hapus file lama (otomatis):
+
+```php
+public function updateProduct($product, $data, $image = null)
+{
+    $filename = $product->image;
+
+    if ($image) {
+        $filename = $this->uploadFile($image, 'assets/products/', $product->image);
+    }
+
+    $product->update([
+        'name' => $data->name,
+        'stock' => $data->stock,
+        'price' => $data->price,
+        'image' => $filename,
+        'description' => $data->description,
+    ]);
+
+    return $product;
+}
+```

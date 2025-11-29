@@ -11,10 +11,15 @@ export default {
   migration: "Migration",
   model: "Model",
   view: "View",
-  Penggunaan: {
+  "Penggunaan Template": {
     title: "Penggunaan Template",
     type: "separator",
   },
   inisialisasi: "Inisialisasi Proyek",
   menu: "Dynamic Menu",
+  "Reusable Code": {
+    title: "Reusable Code",
+    type: "separator",
+  },
+  upload: "Upload Trait",
 };
