@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BMS Docs - Standar Penulisan Kode Laravel
 
-## Getting Started
+Selamat datang di repositori dokumentasi **BMS Docs**. Proyek ini berisi panduan standar penulisan kode (coding standards) untuk pengembangan aplikasi Laravel di lingkungan tim kami.
 
-First, run the development server:
+Tujuan dari dokumentasi ini adalah untuk memastikan konsistensi, keterbacaan, dan kualitas kode yang tinggi di seluruh proyek yang dikembangkan.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Tentang Proyek Ini
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Dokumentasi ini dibangun menggunakan [Next.js](https://nextjs.org) dan [Nextra](https://nextra.site), sebuah framework untuk membuat situs dokumentasi yang statis dan cepat.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Materi yang dibahas dalam dokumentasi ini meliputi:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Controller**: Struktur dan konvensi penulisan controller.
+- **Service**: Penggunaan service pattern untuk logika bisnis.
+- **Trait**: Pemanfaatan trait untuk _code reuse_.
+- **Helper**: Pembuatan dan penggunaan fungsi helper.
+- **Migration**: Standar penulisan file migrasi database.
+- **Model**: Konvensi model Eloquent.
+- **View**: Standar penulisan Blade atau komponen frontend.
+- **Inisialisasi Proyek**: Langkah-langkah memulai proyek baru.
+- **Dynamic Menu**: Konfigurasi menu dinamis.
 
-## Learn More
+## Cara Menjalankan
 
-To learn more about Next.js, take a look at the following resources:
+Ikuti langkah-langkah berikut untuk menjalankan proyek ini di komputer lokal Anda:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1.  **Install Dependencies**
+    Pastikan Anda sudah menginstall Node.js. Jalankan perintah berikut di terminal:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+    ```bash
+    npm install
+    # atau
+    yarn install
+    # atau
+    pnpm install
+    ```
 
-## Deploy on Vercel
+2.  **Jalankan Development Server**
+    Untuk memulai server pengembangan:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+    ```bash
+    npm run dev
+    # atau
+    yarn dev
+    # atau
+    pnpm dev
+    ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+3.  **Buka di Browser**
+    Buka [http://localhost:3000](http://localhost:3000) di browser Anda untuk melihat dokumentasi.
+
+## Berkontribusi
+
+Dokumentasi ini bersifat hidup dan dapat diperbarui. Jika Anda memiliki saran atau perbaikan untuk standar penulisan kode, silakan diskusikan dengan tim atau buat _pull request_ dengan perubahan yang diusulkan.
+
+## Teknologi yang Digunakan
+
+- [Next.js](https://nextjs.org/) - Framework React
+- [Nextra](https://nextra.site/) - Framework Dokumentasi
+- [Tailwind CSS](https://tailwindcss.com/) - Styling
+- [Lucide React](https://lucide.dev/) - Ikon
